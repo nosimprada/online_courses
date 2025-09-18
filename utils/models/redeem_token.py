@@ -1,7 +1,5 @@
 from sqlalchemy import (
-    BigInteger, 
     Column, 
-    Float, 
     Integer, 
     String, 
     DateTime,
@@ -10,7 +8,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from datetime import (
     datetime, 
-    timezone
     )
 import pytz
 from utils.database import Base

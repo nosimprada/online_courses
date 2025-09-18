@@ -7,8 +7,7 @@ from sqlalchemy import (
     DateTime
 )
 from datetime import (
-    datetime, 
-    timezone
+    datetime
     )
 import pytz
 from utils.database import Base
