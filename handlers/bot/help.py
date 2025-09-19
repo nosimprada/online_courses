@@ -70,7 +70,7 @@ async def write_help_message(message: Message, state: FSMContext) -> None:
             chat_id=-1002927033457,
             text=support_message,
             parse_mode="HTML",
-            reply_markup=help_kb.choose_message_action_for_helpers()
+            reply_markup=help_kb.choose_message_action_for_helpers(username)
         )
 
         await message.answer(
