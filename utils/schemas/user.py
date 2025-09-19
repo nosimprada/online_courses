@@ -1,6 +1,13 @@
 from pydantic import BaseModel
+from sqlalchemy import DateTime
 
 class UserCreateSchemaDB(BaseModel):
-    tg_id: int
+    user_id: int
     username: str | None = None
-    email: str
+    email: str | None = None
+
+class UserReadSchemaDB(BaseModel):
+    user_id: int
+    username: str | None = None
+    email: str | None = None
+    created_at: DateTime
