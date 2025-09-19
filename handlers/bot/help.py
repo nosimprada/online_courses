@@ -57,7 +57,6 @@ async def write_help_message(message: Message, state: FSMContext) -> None:
 
     user = message.from_user
     username = f"@{user.username}" if user.username else "Без Username"
-    user_id = user.id
 
     support_message = (
         f"🆘 <b>Нове звернення #{help_message_id} вiд {username}</b>\n\n"
