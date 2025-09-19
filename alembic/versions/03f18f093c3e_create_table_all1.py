@@ -1,8 +1,8 @@
-"""create table all
+"""create table all1
 
-Revision ID: d05656ba49e6
-Revises: 6e96e7db8b85
-Create Date: 2025-09-18 13:28:27.751496
+Revision ID: 03f18f093c3e
+Revises: 
+Create Date: 2025-09-19 18:33:36.046592
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'd05656ba49e6'
-down_revision: Union[str, Sequence[str], None] = '6e96e7db8b85'
+revision: str = '03f18f093c3e'
+down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -36,13 +36,25 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=True),
     sa.Column('amount', sa.Float(), nullable=False),
-    sa.Column('status', sa.String(), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'COMPLETED', 'CANCELED', name='orderstatus'), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('paid_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_orders_id'), 'orders', ['id'], unique=False)
     op.create_index(op.f('ix_orders_user_id'), 'orders', ['user_id'], unique=False)
+    op.create_table('users',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('tg_id', sa.BigInteger(), nullable=False),
+    sa.Column('username', sa.String(), nullable=True),
+    sa.Column('email', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
+    op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
+    op.create_index(op.f('ix_users_tg_id'), 'users', ['tg_id'], unique=True)
+    op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=False)
     op.create_table('redeem_tokens',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('order_id', sa.Integer(), nullable=False),
@@ -73,7 +85,7 @@ def upgrade() -> None:
     sa.Column('order_id', sa.Integer(), nullable=False),
     sa.Column('access_from', sa.DateTime(), nullable=False),
     sa.Column('access_to', sa.DateTime(), nullable=False),
-    sa.Column('status', sa.String(), nullable=False),
+    sa.Column('status', sa.Enum('CREATED', 'ACTIVE', 'EXPIRED', 'CANCELED', name='subscriptionstatus'), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -87,7 +99,7 @@ def upgrade() -> None:
     sa.Column('topic', sa.String(), nullable=False),
     sa.Column('text', sa.String(), nullable=False),
     sa.Column('attachments', sa.String(), nullable=True),
-    sa.Column('status', sa.String(), nullable=False),
+    sa.Column('status', sa.Enum('OPEN', 'RESOLVED', 'CLOSED', name='ticketstatus'), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('resolved_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.tg_id'], ),
@@ -116,6 +128,11 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_redeem_tokens_order_id'), table_name='redeem_tokens')
     op.drop_index(op.f('ix_redeem_tokens_id'), table_name='redeem_tokens')
     op.drop_table('redeem_tokens')
+    op.drop_index(op.f('ix_users_username'), table_name='users')
+    op.drop_index(op.f('ix_users_tg_id'), table_name='users')
+    op.drop_index(op.f('ix_users_id'), table_name='users')
+    op.drop_index(op.f('ix_users_email'), table_name='users')
+    op.drop_table('users')
     op.drop_index(op.f('ix_orders_user_id'), table_name='orders')
     op.drop_index(op.f('ix_orders_id'), table_name='orders')
     op.drop_table('orders')

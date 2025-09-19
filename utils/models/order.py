@@ -1,6 +1,7 @@
 from sqlalchemy import (
     BigInteger, 
-    Column, 
+    Column,
+    Enum, 
     Float, 
     Integer, 
     String, 
@@ -21,7 +22,7 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(BigInteger, nullable=True, index=True)
     amount = Column(Float, nullable=False)
-    status = Column(String, nullable=False, default=OrderStatus.PENDING)
+    status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
     created_at = Column(
         DateTime,
         default=lambda: datetime.datetime.now(pytz.timezone("Europe/Kiev")),

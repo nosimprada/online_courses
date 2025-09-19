@@ -1,6 +1,7 @@
 from sqlalchemy import (
     BigInteger, 
-    Column, 
+    Column,
+    Enum, 
     Integer, 
     String, 
     DateTime,
@@ -24,7 +25,7 @@ class Subscription(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
     access_from = Column(DateTime, nullable=False)
     access_to = Column(DateTime, nullable=False)
-    status = Column(String, nullable=False, default=SubscriptionStatus.CREATED)
+    status = Column(Enum(SubscriptionStatus), nullable=False, default=SubscriptionStatus.CREATED)
 
     created_at = Column(
         DateTime,

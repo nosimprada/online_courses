@@ -1,6 +1,7 @@
 from sqlalchemy import (
     BigInteger, 
     Column,
+    Enum,
     Integer, 
     String, 
     DateTime,
@@ -25,7 +26,7 @@ class Ticket(Base):
     topic = Column(String, nullable=False)
     text = Column(String, nullable=False)
     attachments = Column(String, nullable=True)
-    status = Column(String, nullable=False, default=TicketStatus.OPEN)
+    status = Column(Enum(TicketStatus), nullable=False, default=TicketStatus.OPEN)
 
     created_at = Column(
         DateTime,
