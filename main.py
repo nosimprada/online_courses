@@ -4,9 +4,10 @@ import sys
 
 from aiogram import Bot, Dispatcher
 
+from config import BOT_TOKEN
 from handlers import routers
 
-bot = Bot(token="8324688063:AAFZSq2D1PNi-cnWDMEmOIP3JKmP0AyQ_I0")
+bot = Bot(token=BOT_TOKEN)
 
 
 async def main() -> None:
@@ -14,10 +15,6 @@ async def main() -> None:
 
     dp.include_routers(*routers)
     await dp.start_polling(bot)
-
-
-def get_bot() -> Bot:
-    return bot
 
 
 if __name__ == "__main__":

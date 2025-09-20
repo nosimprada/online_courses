@@ -1,3 +1,6 @@
+import random
+from typing import Dict
+
 from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
@@ -5,6 +8,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, Message
 
 import keyboards.help as help_kb
+from config import ADMIN_CHAT_ID
 
 router = Router()
 
@@ -23,10 +27,21 @@ async def start_help_request(callback: CallbackQuery, state: FSMContext) -> None
 
 @router.callback_query(F.data.startswith("help:support_topic_"), StateFilter(HelpStates.choosing_topic))
 async def choose_support_topic(callback: CallbackQuery, state: FSMContext) -> None:
-    topic_id = callback.data.split("_")[-1]
-    await state.update_data(selected_topic=topic_id)
+    topics_names_: Dict[str, str] = {
+        "help:support_topic_1": "Тема повідомлення №1",
+        "help:support_topic_2": "Тема повідомлення №2",
+        "help:support_topic_3": "Тема повідомлення №3"
+    }
 
-    await callback.message.answer(f"Обрано тему повідомлення {topic_id}.\nОпишіть вашу проблему якомога детальніше:")
+    topic_id = callback.data.split("_")[-1]
+    topic_name = topics_names_[callback.data]
+    await state.update_data(selected_topic_id=topic_id, selected_topic_name=topic_name)
+
+    await callback.message.answer(
+        f"Выбрана тема {topic_name}.\n"
+        f"Опишіть вашу проблему якомога детальніше.\n\n"
+        f"📷 Ви також можете прикріпити фото до повідомлення."
+    )
     await state.set_state(HelpStates.writing_message)
 
     await callback.answer()
@@ -39,43 +54,62 @@ async def cancel_help_request(callback: CallbackQuery, state: FSMContext) -> Non
     await callback.answer()
 
 
-@router.message(StateFilter(HelpStates.writing_message))
-async def write_help_message(message: Message, state: FSMContext) -> None:
-    from main import get_bot
-    bot = get_bot()
+@router.message(F.text, StateFilter(HelpStates.writing_message))
+async def write_help_message_text(message: Message, state: FSMContext):
+    await _process_help_message(message, state, message_text=message.text)
 
+
+@router.message(F.photo, StateFilter(HelpStates.writing_message))
+async def write_help_message_photo(message: Message, state: FSMContext):
+    caption = message.caption if message.caption else "Без опису"
+
+    await _process_help_message(message, state, message_text=caption, photo=message.photo[-1].file_id)
+
+
+async def _process_help_message(message: Message, state: FSMContext, message_text: str, photo=None) -> None:
     data = await state.get_data()
 
-    selected_topic = data.get('selected_topic')
+    selected_topic = data.get('selected_topic_name')
     if not selected_topic:
         await state.set_state(HelpStates.choosing_topic)
         await message.answer("Виберіть тему для звернення", reply_markup=help_kb.choose_support_topic())
         return
 
-    # Брать следующий ID обращения из БД / чата Telegram
-    help_message_id = 123
-
     user = message.from_user
     username = f"@{user.username}" if user.username else "Без Username"
+    support_number = random.randint(5000, 8000000)
 
     support_message = (
-        f"🆘 <b>Нове звернення #{help_message_id} вiд {username}</b>\n\n"
+        f"🆘 <b>Нове звернення #{support_number} вiд {username}</b>\n\n"
         f"🆔 <b>User ID:</b> <code>{user.id}</code>\n"
         f"📋 <b>Тема:</b> {selected_topic}\n\n"
-        f"💬 <b>Повідомлення:</b>\n{message.text}"
+        f"💬 <b>Повідомлення:</b>\n{message_text}"
     )
 
+    if photo:
+        support_message += "\n\n📷 <b>Прикріплено фото</b>"
+
     try:
-        await bot.send_message(
-            chat_id=-1002927033457,
-            text=support_message,
-            parse_mode="HTML",
-            reply_markup=help_kb.choose_message_action_for_helpers(username)
-        )
+        if photo:
+            await message.bot.send_photo(
+                chat_id=ADMIN_CHAT_ID,
+                photo=photo,
+                caption=support_message,
+                parse_mode="HTML",
+                reply_markup=help_kb.choose_message_action_for_helpers(user.username)
+            )
+        else:
+            await message.bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text=support_message,
+                parse_mode="HTML",
+                reply_markup=help_kb.choose_message_action_for_helpers(user.username)
+            )
 
         await message.answer(
-            f"Звернення №{help_message_id} отримано. Відповімо протягом 24 годин (10:00–18:00 за Києвом)")
+            f"Звернення №{support_number} отримано. Відповімо протягом 24 годин (10:00–18:00 за Києвом)")
     except Exception as e:
         print(f"Error sending message to support group: {e}")
+        await message.answer("❌ Виникла помилка при відправці звернення. Спробуйте пізніше.")
 
     await state.clear()
