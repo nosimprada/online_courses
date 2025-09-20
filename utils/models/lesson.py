@@ -1,16 +1,14 @@
+from datetime import datetime
+
+from pytz import timezone
 from sqlalchemy import (
-    Column, 
-    Integer, 
-    String, 
+    Column,
+    Integer,
+    String,
     DateTime,
 )
-from sqlalchemy.orm import relationship
-from datetime import (
-    datetime,
-    )
-import pytz
+
 from utils.database import Base
-import datetime
 
 
 class Lesson(Base):
@@ -25,7 +23,6 @@ class Lesson(Base):
 
     created_at = Column(
         DateTime,
-        default=lambda: datetime.datetime.now(pytz.timezone("Europe/Kiev")),
+        default=lambda: datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None),
         nullable=False
-        )
-
+    )

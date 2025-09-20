@@ -1,21 +1,19 @@
+from datetime import datetime
+
+from pytz import timezone
 from sqlalchemy import (
-    BigInteger, 
+    BigInteger,
     Column,
-    Enum, 
-    Integer, 
-    String, 
+    Enum,
+    Integer,
     DateTime,
     ForeignKey
 )
 from sqlalchemy.orm import relationship
-from datetime import (
-    datetime
-    )
-import pytz
-from utils.database import Base
-import datetime
 
+from utils.database import Base
 from utils.enums.subscription import SubscriptionStatus
+
 
 class Subscription(Base):
     __tablename__ = "subscriptions"
@@ -29,8 +27,8 @@ class Subscription(Base):
 
     created_at = Column(
         DateTime,
-        default=lambda: datetime.datetime.now(pytz.timezone("Europe/Kiev")),
+        default=lambda: datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None),
         nullable=False
-        )
+    )
 
     order = relationship("Order", backref="subscriptions")

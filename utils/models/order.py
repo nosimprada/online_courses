@@ -1,20 +1,18 @@
+from datetime import datetime
+
+from pytz import timezone
 from sqlalchemy import (
-    BigInteger, 
+    BigInteger,
     Column,
-    Enum, 
-    Float, 
-    Integer, 
-    String, 
+    Enum,
+    Float,
+    Integer,
     DateTime
 )
-from datetime import (
-    datetime
-    )
-import pytz
-from utils.database import Base
-import datetime
 
+from utils.database import Base
 from utils.enums.order import OrderStatus
+
 
 class Order(Base):
     __tablename__ = "orders"
@@ -25,7 +23,7 @@ class Order(Base):
     status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
     created_at = Column(
         DateTime,
-        default=lambda: datetime.datetime.now(pytz.timezone("Europe/Kiev")),
+        default=lambda: datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None),
         nullable=False
-        )
+    )
     paid_at = Column(DateTime, nullable=True)

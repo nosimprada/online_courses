@@ -1,21 +1,20 @@
+from datetime import datetime
+
+from pytz import timezone
 from sqlalchemy import (
-    BigInteger, 
+    BigInteger,
     Column,
     Enum,
-    Integer, 
-    String, 
+    Integer,
+    String,
     DateTime,
     ForeignKey
 )
 from sqlalchemy.orm import relationship
-from datetime import (
-    datetime
-    )
-import pytz
-from utils.database import Base
-import datetime
 
+from utils.database import Base
 from utils.enums.ticket import TicketStatus
+
 
 # id, user_id, topic, text, attachments[], status, created_at, resolved_at
 class Ticket(Base):
@@ -30,8 +29,8 @@ class Ticket(Base):
 
     created_at = Column(
         DateTime,
-        default=lambda: datetime.datetime.now(pytz.timezone("Europe/Kiev")),
+        default=lambda: datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None),
         nullable=False
-        )
+    )
     resolved_at = Column(DateTime, nullable=True)
     user = relationship("User", backref="tickets")
