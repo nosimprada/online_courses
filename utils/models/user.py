@@ -1,16 +1,16 @@
+from datetime import datetime
+
+from pytz import timezone
 from sqlalchemy import (
-    BigInteger, 
-    Column, 
-    Integer, 
-    String, 
+    BigInteger,
+    Column,
+    Integer,
+    String,
     DateTime
 )
-from datetime import (
-    datetime
-    )
-import pytz
+
 from utils.database import Base
-import datetime
+
 
 class User(Base):
     __tablename__ = "users"
@@ -21,6 +21,6 @@ class User(Base):
     email = Column(String, unique=True, nullable=True, index=True)
     created_at = Column(
         DateTime,
-        default=lambda: datetime.datetime.now(pytz.timezone("Europe/Kiev")),
+        default=lambda: datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None),
         nullable=False
-        )
+    )
