@@ -18,14 +18,14 @@ class UserDAO:
         await session.commit()
         await session.refresh(user)
 
-        return UserReadSchemaDB.model_validate(user, from_attributes=True)
+        return UserReadSchemaDB.model_validate(user)
 
     @staticmethod
     async def get_by_tg_id(session: AsyncSession, tg_id: int) -> UserReadSchemaDB | None:
         result = await session.execute(select(User).where(User.tg_id == tg_id))
         user = result.scalars().first()
         if user:
-            return UserReadSchemaDB.model_validate(user, from_attributes=True)
+            return UserReadSchemaDB.model_validate(user)
         return None
 
     @staticmethod
@@ -33,7 +33,7 @@ class UserDAO:
         result = await session.execute(select(User).where(User.email == email))
         user = result.scalars().first()
         if user:
-            return UserReadSchemaDB.model_validate(user, from_attributes=True)
+            return UserReadSchemaDB.model_validate(user)
         return None
 
     @staticmethod
@@ -42,6 +42,6 @@ class UserDAO:
         users = result.scalars().all()
 
         if users:
-            return [UserReadSchemaDB.model_validate(user, from_attributes=True) for user in users]
+            return [UserReadSchemaDB.model_validate(user) for user in users]
 
         return None

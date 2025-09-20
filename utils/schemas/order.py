@@ -1,13 +1,21 @@
-from pydantic import BaseModel
-from sqlalchemy import DateTime
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
-    # user_id = Column(BigInteger, nullable=True, index=True)
-    # amount = Column(Float, nullable=False)
-    # status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
 class OrderCreateSchemaDB(BaseModel):
+    user_id: Optional[int] = None
     amount: float
-    status: str | None = None
+    status: Optional[str] = None
 
-class OrderReadSchemaDB(OrderCreateSchemaDB):
+
+class OrderReadSchemaDB(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
+    user_id: Optional[int] = None
+    amount: float
+    status: str
+    created_at: datetime
+    paid_at: Optional[datetime] = None
