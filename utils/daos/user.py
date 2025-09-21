@@ -8,6 +8,15 @@ from utils.schemas.user import UserCreateSchemaDB, UserReadSchemaDB
 class UserDAO:
     @staticmethod
     async def create(session: AsyncSession, user_data: UserCreateSchemaDB) -> UserReadSchemaDB:
+        existing_user = await UserDAO.get_by_tg_id(session, user_data.user_id)
+        if existing_user:
+            return existing_user
+
+        if user_data.email:
+            existing_email_user = await UserDAO.get_user_by_email(session, user_data.email)
+            if existing_email_user:
+                return existing_email_user
+
         user = User(
             tg_id=user_data.user_id,
             username=user_data.username,
