@@ -2,17 +2,19 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+
 class CreateInvoiceResponse(BaseModel):
     id: str
     url: str
 
+
 class _GetInvoiceStatusResponseCancel(BaseModel):
+    status: str
     """
         processing - заявление на отмену находится в обработке
         success - заявление на отмену выполнено успешно
         failure - неуспешная отмена
     """
-    status: str
 
     amount: int
     ccy: int
@@ -24,9 +26,11 @@ class _GetInvoiceStatusResponseCancel(BaseModel):
     transaction_id: str
     operation_reference: str
 
+
 class GetInvoiceStatusResponse(BaseModel):
     id: str
 
+    status: str
     """
         created - счет создан успешно, ожидается оплата
         processing - платеж обрабатывается
@@ -36,7 +40,6 @@ class GetInvoiceStatusResponse(BaseModel):
         reversed - оплата возвращена после успеха
         expired - время действия исчерпано
     """
-    status: str
 
     failure_reason: str
     error_code: str
