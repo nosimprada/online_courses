@@ -19,6 +19,7 @@ async def show_users(callback: CallbackQuery) -> None:
 
     await callback.message.answer(
         f"Кількість користувачів: <code>{len(users)}</code>",
+        parse_mode="HTML",
         reply_markup=admin_kb.show_users(users)
     )
 
