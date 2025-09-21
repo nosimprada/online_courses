@@ -13,3 +13,9 @@ def menu(is_admin: bool) -> InlineKeyboardMarkup:
     builder.adjust(1)
 
     return builder.as_markup()
+
+
+def back_to_menu() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="На головну", callback_data="back_to_menu")
+    return builder.as_markup()

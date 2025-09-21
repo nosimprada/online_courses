@@ -9,6 +9,7 @@ from aiogram.types import CallbackQuery, Message
 
 import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
+from keyboards.start import back_to_menu as back_to_menu_kb
 
 router = Router()
 
@@ -39,8 +40,9 @@ async def choose_support_topic(callback: CallbackQuery, state: FSMContext) -> No
 
     await callback.message.answer(
         f"Выбрана тема {topic_name}.\n"
-        f"Опишіть вашу проблему якомога детальніше.\n\n"
-        f"📷 Ви також можете прикріпити фото до повідомлення."
+        "Опишіть вашу проблему якомога детальніше.\n\n"
+        "📷 Ви також можете прикріпити фото до повідомлення.\n"
+        "Для скасування дії введіть «-»."
     )
     await state.set_state(HelpStates.writing_message)
 
@@ -50,12 +52,17 @@ async def choose_support_topic(callback: CallbackQuery, state: FSMContext) -> No
 @router.callback_query(F.data == "help:cancel", StateFilter(HelpStates.choosing_topic))
 async def cancel_help_request(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.answer("❌ Запит до технічної підтримки скасовано.")
+    await callback.message.edit_text("❌ Запит до технічної підтримки скасовано.", reply_markup=back_to_menu_kb())
     await callback.answer()
 
 
 @router.message(F.text, StateFilter(HelpStates.writing_message))
 async def write_help_message_text(message: Message, state: FSMContext):
+    if message.text == "-":
+        await state.clear()
+        await message.answer("❌ Запит до технічної підтримки скасовано.", reply_markup=back_to_menu_kb())
+        return
+
     await _process_help_message(message, state, message_text=message.text)
 
 

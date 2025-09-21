@@ -1,6 +1,6 @@
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import StateFilter, CommandStart
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 import keyboards.start as start_kb
 from config import ADMIN_CHAT_ID
@@ -22,3 +22,9 @@ async def menu(message: Message) -> None:
     ))
 
     await message.answer(f"Hi, {message.from_user.first_name}!", reply_markup=start_kb.menu(is_admin))
+
+
+@router.callback_query(F.data == "back_to_menu")
+async def handle_back_to_menu(callback: CallbackQuery) -> None:
+    is_admin = True if callback.from_user.id == ADMIN_CHAT_ID else False
+    await callback.message.edit_text(f"Hi, {callback.from_user.first_name}!", reply_markup=start_kb.menu(is_admin))
