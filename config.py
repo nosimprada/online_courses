@@ -12,3 +12,12 @@ ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
+
+# Я использовал Яндекс Почту для SMTP. https://yandex.ru/support/yandex-360/business/mail/ru/mail-clients/others#smtpsetting
+# SMTP_SERVER=smtp.yandex.ru
+# SMTP_PORT=465 (Для SSL)
+
+SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = int(os.getenv("SMTP_PORT"))
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
