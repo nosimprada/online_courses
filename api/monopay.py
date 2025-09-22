@@ -1,8 +1,4 @@
-import json
-import logging
-
 from aiohttp.client import ClientSession
-from aiohttp.web import Application, Request, Response, json_response
 
 from utils.schemas.payment import CreateInvoiceResponse, GetInvoiceStatusResponse
 
@@ -67,7 +63,6 @@ class MonoPayAPI:
 
 
 api = MonoPayAPI("")
-
 
 # async def handle_webhook(request: Request) -> Response:
 #     try:

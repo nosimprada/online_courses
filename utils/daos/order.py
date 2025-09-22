@@ -1,9 +1,10 @@
+from typing import List
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from utils.enums.order import OrderStatus
 from utils.models.order import Order
-from utils.schemas.order import OrderReadSchemaDB, OrderCreateSchemaDB
+from utils.schemas.order import OrderCreateSchemaDB, OrderReadSchemaDB
 
 
 class OrderDAO:
@@ -22,27 +23,11 @@ class OrderDAO:
         return OrderReadSchemaDB.model_validate(order)
 
     @staticmethod
-    async def get_by_tg_id(session: AsyncSession, tg_id: int) -> OrderReadSchemaDB | None:
-        result = await session.execute(select(Order).where(Order.user_id == tg_id))
-        order = result.scalars().first()
+    async def get_by_tg_id(session: AsyncSession, tg_id: int) -> List[OrderReadSchemaDB]:
+        result = await session.execute(select(Order).where((Order.user_id == tg_id)))
+        orders = result.scalars().all()
 
-        if order:
-            return OrderReadSchemaDB.model_validate(order)
-
-        return None
-
-    @staticmethod
-    async def close_access(session: AsyncSession, tg_id: int) -> OrderReadSchemaDB | None:
-        result = await session.execute(select(Order).where(Order.user_id == tg_id))
-        order = result.scalars().first()
-
-        if order:
-            order = OrderReadSchemaDB.model_validate(order)
-
-            order.status = OrderStatus.CANCELED
-            await session.commit()
-            await session.refresh(order)
-
-            return OrderReadSchemaDB.model_validate(order)
+        if orders:
+            return [OrderReadSchemaDB.model_validate(order) for order in orders]
 
         return None

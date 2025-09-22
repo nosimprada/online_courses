@@ -9,10 +9,11 @@ from sqlalchemy import (
     DateTime,
     ForeignKey
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
 
 from utils.database import Base
 from utils.enums.subscription import SubscriptionStatus
+from utils.models.order import Order
 
 
 class Subscription(Base):
@@ -31,4 +32,4 @@ class Subscription(Base):
         nullable=False
     )
 
-    order = relationship("Order", backref="subscriptions")
+    order: Mapped["Order"] = relationship("Order", backref="subscriptions")
