@@ -1,6 +1,12 @@
-from aiohttp.client import ClientSession
+import json
+from json import JSONDecodeError
 
-from utils.schemas.payment import CreateInvoiceResponse, GetInvoiceStatusResponse
+from aiohttp.client import ClientSession
+from fastapi import Request, HTTPException, FastAPI
+from fastapi.responses import JSONResponse
+
+from config import MONOPAY_TOKEN
+from utils.schemas.payment import CreateInvoiceResponse, GetInvoiceStatusResponse, CreateInvoiceRequest
 
 
 class MonoPayAPI:
@@ -30,10 +36,10 @@ class MonoPayAPI:
                     data = await response.json()
                     return CreateInvoiceResponse(id=data["invoiceId"], url=data["pageUrl"])
 
-                print(f"Error creating invoice: {response.status} - {await response.text()}")
+                print(f"[ERROR] Error creating invoice: {response.status} - {await response.text()}")
                 return None
 
-    async def check_invoice_status(self, invoice_id: str):
+    async def check_invoice_status(self, invoice_id: str) -> GetInvoiceStatusResponse | None:
         endpoint = f"{self.base_url}/status?invoiceId={invoice_id}"
         headers = self._default_headers()
 
@@ -55,51 +61,72 @@ class MonoPayAPI:
                         destination=data["destination"],
                     )
 
-                print(f"Error checking invoice status: {response.status} - {await response.text()}")
+                print(f"[ERROR] Error checking invoice status: {response.status} - {await response.text()}")
                 return None
 
     def _default_headers(self) -> dict[str, str]:
         return {"X-Token": self.api_key}
 
 
-api = MonoPayAPI("")
+api = MonoPayAPI(MONOPAY_TOKEN)
 
-# async def handle_webhook(request: Request) -> Response:
-#     try:
-#         data = await request.json()
-#
-#         logging.info(f"Received webhook data: {json.dumps(data, indent=2)}")
-#
-#         invoice_id = data.get("invoiceId")
-#         status = data.get("status")
-#         reference = data.get("reference")
-#         amount = data.get("amount")
-#
-#         if not invoice_id:
-#             logging.error("Invoice ID not found in webhook data")
-#             return json_response({"error": "Invoice ID required"}, status=400)
-#
-#         match status:
-#             case "success":
-#                 logging.info(f"Payment successful for invoice {invoice_id}, order {reference}")
-#             case "failure":
-#                 logging.info(f"Payment failed for invoice {invoice_id}, order {reference}")
-#             case "processing":
-#                 logging.info(f"Payment processing for invoice {invoice_id}, order {reference}")
-#             case _:
-#                 logging.error(f"Unknown status {status} for invoice {invoice_id}, order {reference}")
-#
-#         return json_response({"status": "ok"})
-#
-#     except json.JSONDecodeError:
-#         logging.error("Invalid JSON in webhook request")
-#         return json_response({"error": "Invalid JSON"}, status=400)
-#     except Exception as e:
-#         logging.error(f"Error processing webhook: {str(e)}")
-#         return json_response({"error": "Internal server error"}, status=500)
-#
-# def create_app() -> Application:
-#     app = Application()
-#     app.router.add_post("/webhook/monopay", handle_webhook)
-#
-#     return app
+app = FastAPI(title="Monopay API")
+
+
+@app.post("/webhook")
+async def handle_webhook(request: Request) -> JSONResponse:
+    try:
+        data = await request.json()
+        print(f"[INFO] Received webhook data: {json.dumps(data, indent=2)}")
+    
+        invoice_id = data.get("invoiceId")
+        status = data.get("status")
+        reference = data.get("reference")
+
+        if not invoice_id:
+            print("[ERROR] Invoice ID not found in webhook data.")
+            raise HTTPException(status_code=400, detail="Invalid Invoice ID")
+
+        match status:
+            case "success":
+                print(f"[MONO_SUCCESS] Payment successful for invoice {invoice_id}, order {reference}")
+                pass
+            case "failure":
+                print(f"[MONO_WARN] Payment failed for invoice {invoice_id}, order {reference}")
+                pass
+            case "processing":
+                print(f"[MONO_INFO] Payment processing for invoice {invoice_id}, order {reference}")
+            case _:
+                print(f"[MONO_ERROR] Unknown status {status} for invoice {invoice_id}, order {reference}")
+
+        return JSONResponse(content={"status": "ok"})
+
+    except JSONDecodeError:
+        print("[ERROR] Invalid JSON in webhook request")
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    except Exception as e:
+        print(f"[ERROR] Error processing webhook: {str(e)}")
+        return HTTPException(status_code=500, detail="Internal Server Error")
+
+
+@app.post("/invoice")
+async def create_invoice(request: CreateInvoiceRequest) -> JSONResponse:
+    result = await api.create_invoice(request.amount, request.order_id, request.webhook_url)
+    if result:
+        return JSONResponse(content=result.model_dump_json(), status_code=201)
+
+    raise HTTPException(status_code=500, detail="failed to create invoice")
+
+
+@app.get("/invoice/{invoice_id}")
+async def get_invoice_status(invoice_id: int) -> JSONResponse:
+    result = await api.check_invoice_status(invoice_id)
+    if result:
+        return JSONResponse(content=result.model_dump_json(), status_code=200)
+
+    raise HTTPException(status_code=500, detail="failed to get invoice status")
+
+
+@app.get("/health")
+async def health_check() -> JSONResponse:
+    return JSONResponse(content={"status": "healthy"}, status_code=200)

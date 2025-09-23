@@ -3,6 +3,12 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class CreateInvoiceRequest(BaseModel):
+    amount: int
+    order_id: int
+    webhook_url: str
+
+
 class CreateInvoiceResponse(BaseModel):
     id: str
     url: str
