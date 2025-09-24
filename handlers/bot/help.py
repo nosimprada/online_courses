@@ -21,7 +21,7 @@ class HelpStates(StatesGroup):
 
 @router.callback_query(F.data == "help:start")
 async def start_help_request(callback: CallbackQuery, state: FSMContext) -> None:
-    await callback.message.answer("Виберіть тему для звернення", reply_markup=help_kb.choose_support_topic())
+    await callback.message.edit_text("Виберіть тему для звернення", reply_markup=help_kb.choose_support_topic())
     await state.set_state(HelpStates.choosing_topic)
     await callback.answer()
 
@@ -38,7 +38,7 @@ async def choose_support_topic(callback: CallbackQuery, state: FSMContext) -> No
     topic_name = topics_names_[callback.data]
     await state.update_data(selected_topic_id=topic_id, selected_topic_name=topic_name)
 
-    await callback.message.answer(
+    await callback.message.edit_text(
         f"Выбрана тема {topic_name}.\n"
         "Опишіть вашу проблему якомога детальніше.\n\n"
         "📷 Ви також можете прикріпити фото до повідомлення.\n"
@@ -57,7 +57,7 @@ async def cancel_help_request(callback: CallbackQuery, state: FSMContext) -> Non
 
 
 @router.message(F.text, StateFilter(HelpStates.writing_message))
-async def write_help_message_text(message: Message, state: FSMContext):
+async def write_help_message_text(message: Message, state: FSMContext) -> None:
     if message.text == "-":
         await state.clear()
         await message.answer("❌ Запит до технічної підтримки скасовано.", reply_markup=back_to_menu_kb())
@@ -67,7 +67,7 @@ async def write_help_message_text(message: Message, state: FSMContext):
 
 
 @router.message(F.photo, StateFilter(HelpStates.writing_message))
-async def write_help_message_photo(message: Message, state: FSMContext):
+async def write_help_message_photo(message: Message, state: FSMContext) -> None:
     caption = message.caption if message.caption else "Без опису"
 
     await _process_help_message(message, state, message_text=caption, photo=message.photo[-1].file_id)
@@ -94,7 +94,7 @@ async def _process_help_message(message: Message, state: FSMContext, message_tex
     )
 
     if photo:
-        support_message += "\n\n📷 <b>Прикріплено фото</b>"
+        support_message += "\n\n📷 <b>Прикріплено фото.</b>"
 
     try:
         if photo:
@@ -114,9 +114,15 @@ async def _process_help_message(message: Message, state: FSMContext, message_tex
             )
 
         await message.answer(
-            f"Звернення №{support_number} отримано. Відповімо протягом 24 годин (10:00–18:00 за Києвом)")
+            f"Звернення №{support_number} отримано. Відповімо протягом 24 годин (10:00–18:00 за Києвом)",
+            reply_markup=back_to_menu_kb()
+        )
+
     except Exception as e:
         print(f"Error sending message to support group: {e}")
-        await message.answer("❌ Виникла помилка при відправці звернення. Спробуйте пізніше.")
+        await message.answer(
+            "❌ Виникла помилка при відправці звернення. Спробуйте пізніше.",
+            reply_markup=back_to_menu_kb()
+        )
 
     await state.clear()

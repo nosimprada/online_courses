@@ -9,6 +9,7 @@ def menu() -> InlineKeyboardMarkup:
 
     builder.button(text="Користувачі", callback_data="admin:show_users")
     builder.button(text="Активні доступи", callback_data="admin:show_active_accesses")
+    builder.button(text="На головну", callback_data="back_to_menu")
 
     builder.adjust(1)
 

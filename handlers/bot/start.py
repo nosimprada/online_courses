@@ -14,7 +14,7 @@ router = Router()
 async def menu(message: Message) -> None:
     is_admin = True if message.from_user.id == ADMIN_CHAT_ID else False
 
-    # TODO: Пользователь добавляется сразу, а не после подтверждения почтой или токеном
+    # TEMP: Пользователь добавляется сразу, а не после подтверждения почтой или токеном
     await create_user(UserCreateSchemaDB(
         user_id=message.from_user.id,
         username=message.from_user.username,
