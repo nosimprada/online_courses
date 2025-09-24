@@ -72,10 +72,9 @@ async def show_user_orders(callback: CallbackQuery) -> None:
 
     except Exception as e:
         print(f"[ERROR] Show user orders for admin: {e}")
-        await callback.answer()
 
 
-@router.callback_query(F.data == "admin:show_user_subscriptions_")
+@router.callback_query(F.data.startswith("admin:show_user_subscriptions_"))
 async def show_user_subscriptions(callback: CallbackQuery) -> None:
     user_id = int(callback.data.split("_")[-1])
 
@@ -97,7 +96,6 @@ async def show_user_subscriptions(callback: CallbackQuery) -> None:
 
     except Exception as e:
         print(f"[ERROR] Show user subscriptions for admin: {e}")
-        await callback.answer()
 
 
 @router.callback_query(F.data == "admin:show_active_accesses")
