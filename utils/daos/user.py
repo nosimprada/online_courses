@@ -1,3 +1,5 @@
+from typing import List, Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,11 +48,8 @@ class UserDAO:
         return None
 
     @staticmethod
-    async def get_all_users(session: AsyncSession) -> list[UserReadSchemaDB] | None:
+    async def get_all_users(session: AsyncSession) -> List[UserReadSchemaDB]:
         result = await session.execute(select(User))
-        users = result.scalars().all()
 
-        if users:
-            return [UserReadSchemaDB.model_validate(user) for user in users]
-
-        return None
+        users: Sequence[User] = result.scalars().all()
+        return [UserReadSchemaDB.model_validate(user) for user in users]

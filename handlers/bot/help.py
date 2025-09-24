@@ -102,14 +102,12 @@ async def _process_help_message(message: Message, state: FSMContext, message_tex
                 chat_id=ADMIN_CHAT_ID,
                 photo=photo,
                 caption=support_message,
-                parse_mode="HTML",
                 reply_markup=help_kb.choose_message_action_for_helpers(user.username)
             )
         else:
             await message.bot.send_message(
                 chat_id=ADMIN_CHAT_ID,
                 text=support_message,
-                parse_mode="HTML",
                 reply_markup=help_kb.choose_message_action_for_helpers(user.username)
             )
 

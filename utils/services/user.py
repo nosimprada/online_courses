@@ -1,3 +1,5 @@
+from typing import List
+
 from utils.daos.user import UserDAO
 from utils.database import AsyncSessionLocal
 from utils.schemas.user import (
@@ -21,6 +23,6 @@ async def get_user_by_email(email: str) -> UserReadSchemaDB | None:
         return await UserDAO.get_user_by_email(session, email)
 
 
-async def get_all_users() -> UserReadSchemaDB | None:
+async def get_all_users() -> List[UserReadSchemaDB]:
     async with AsyncSessionLocal() as session:
         return await UserDAO.get_all_users(session)

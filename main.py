@@ -3,15 +3,15 @@ import logging
 import sys
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 
 from config import BOT_TOKEN
 from handlers import routers
 
-bot = Bot(token=BOT_TOKEN)
-
 
 async def main() -> None:
     dp = Dispatcher()
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 
     dp.include_routers(*routers)
     await dp.start_polling(bot)
