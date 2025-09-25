@@ -2,13 +2,13 @@ import asyncio
 import logging
 import sys
 
+import uvicorn
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
-from fastapi import FastAPI, Request
 from aiogram.types import Update
-import uvicorn
+from fastapi import FastAPI, Request
 
-from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH
+from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, SERVER_PORT
 from handlers import routers
 
 dp = Dispatcher()
@@ -17,39 +17,49 @@ dp.include_routers(*routers)
 
 app = FastAPI(title="Online Courses API", version="1.0.0")
 
+
 # Основные эндпоинты
 @app.get("/")
 async def root():
     return {"message": "Online Courses API", "bot_status": "active"}
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 # Telegram Webhook
 @app.post(WEBHOOK_PATH)
 async def telegram_webhook(request: Request):
     try:
         update_data = await request.json()
+
         update = Update(**update_data)
         await dp.feed_update(bot, update)
+
         return {"ok": True}
+
     except Exception as e:
         logging.error(f"Webhook error: {e}")
         return {"ok": False, "error": str(e)}
 
+
 async def main() -> None:
     logging.info("Setting up webhook...")
+
     await bot.set_webhook(
         url=WEBHOOK_URL,
         allowed_updates=dp.resolve_used_update_types(),
         drop_pending_updates=True
     )
-    logging.info(f"Webhook set to {WEBHOOK_URL}")
-    
+
+    logging.info(f"Webhook set to {WEBHOOK_URL}.")
+
     # Запускаем FastAPI сервер
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000)
+    config = uvicorn.Config(app, host="0.0.0.0", port=SERVER_PORT)
     server = uvicorn.Server(config)
+
     await server.serve()
 
 
