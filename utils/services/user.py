@@ -26,3 +26,8 @@ async def get_user_by_email(email: str) -> UserReadSchemaDB | None:
 async def get_all_users() -> List[UserReadSchemaDB]:
     async with AsyncSessionLocal() as session:
         return await UserDAO.get_all_users(session)
+
+
+async def set_user_email(tg_id: int, email: str) -> UserReadSchemaDB | None:
+    async with AsyncSessionLocal() as session:
+        return await UserDAO.set_user_email(session, tg_id, email)

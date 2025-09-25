@@ -76,7 +76,7 @@ async def write_help_message_photo(message: Message, state: FSMContext) -> None:
 async def _process_help_message(message: Message, state: FSMContext, message_text: str, photo=None) -> None:
     data = await state.get_data()
 
-    selected_topic = data.get('selected_topic_name')
+    selected_topic = data.get("selected_topic_name")
     if not selected_topic:
         await state.set_state(HelpStates.choosing_topic)
         await message.answer("Виберіть тему для звернення", reply_markup=help_kb.choose_support_topic())

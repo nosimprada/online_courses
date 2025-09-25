@@ -1,12 +1,93 @@
+from datetime import datetime
+
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.filters import StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.types import CallbackQuery, Message
 
 import keyboards.admin as admin_kb
 from utils.services.order import get_orders_by_tg_id
 from utils.services.subscription import get_subscriptions_by_tg_id, get_active_subscriptions
-from utils.services.user import get_all_users, get_user_by_tg_id
+from utils.services.user import get_all_users, get_user_by_tg_id, set_user_email
 
 router = Router()
+
+
+class SetUserEmailState(StatesGroup):
+    email = State()
+
+
+@router.callback_query(F.data.startswith("admin:show_user_orders_"))
+async def show_user_orders(callback: CallbackQuery) -> None:
+    user_id = int(callback.data.split("_")[-1])
+
+    orders = await get_orders_by_tg_id(user_id)
+    if not orders:
+        await callback.message.edit_text("Користувач не має замовлень.", reply_markup=admin_kb.back_to_admin_or_menu())
+        return
+
+    msg = f"\n<i>Замовлення користувача (ID {user_id}):</i>\n\n"
+
+    for order in orders:
+        msg += f"📦 <b>ID:</b> <code>{order.id}</code>\n"
+        msg += f"💰 <b>Сума:</b> <code>{order.amount}</code>\n"
+        msg += f"🔔 <b>Статус:</b> <code>{order.status}</code>\n"
+        msg += f"⌚ <b>Створено:</b> <code>{_normalize_date(order.created_at)}</code>\n"
+        msg += f"💸 <b>Сплачено:</b> <code>{_normalize_date(order.paid_at)}</code>\n\n"
+
+    await callback.message.edit_text(msg, reply_markup=admin_kb.show_user_orders(user_id))
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:show_user_subscriptions_"))
+async def show_user_subscriptions(callback: CallbackQuery) -> None:
+    user_id = int(callback.data.split("_")[-1])
+
+    subscriptions = await get_subscriptions_by_tg_id(user_id)
+    if not subscriptions:
+        await callback.message.edit_text("Користувач не має доступів.", reply_markup=admin_kb.back_to_admin_or_menu())
+        return
+
+    msg = f"\n<i>Доступи користувача (ID {user_id}):</i>\n\n"
+
+    for subscription in subscriptions:
+        msg += f"🎟️ <b>ID:</b> <code>{subscription.id}</code>\n"
+        msg += f"📦 <b>ID замовлення:</b> <code>{subscription.order_id}</code>\n"
+        msg += f"📅 <b>Початок доступу:</b> <code>{subscription.access_from}</code>\n"
+        msg += f"📅 <b>Кінець доступу:</b> <code>{subscription.access_to}</code>\n"
+        msg += f"🔔 <b>Статус:</b> <code>{subscription.status}</code>\n"
+        msg += f"⌚ <b>Створено:</b> <code>{_normalize_date(subscription.created_at)}</code>\n"
+
+    await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin_or_menu())
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:show_user_"))
+async def show_user_data(callback: CallbackQuery) -> None:
+    user_id = int(callback.data.split("_")[-1])
+
+    user = await get_user_by_tg_id(user_id)
+    if not user:
+        await callback.message.edit_text("Користувач не знайдено.", reply_markup=admin_kb.back_to_admin_or_menu())
+        return
+
+    msg = (
+        f"👤 <b>Інформація про користувача</b>\n\n"
+        f"🆔 <b>User ID:</b> <code>{user.user_id}</code>\n"
+    )
+
+    if user.username:
+        msg += f"👤 <b>Username:</b> @{user.username}\n"
+    if user.email:
+        msg += f"📧 <b>Email:</b> <code>{user.email}</code>\n"
+
+    msg += f"📅 <b>Створено:</b> <code>{_normalize_date(user.created_at)}</code>\n"
+
+    msg += f"\n📋 Оберіть категорію для перегляду:"
+
+    await callback.message.edit_text(msg, reply_markup=admin_kb.show_user_data(user_id))
+    await callback.answer()
 
 
 @router.callback_query(F.data == "admin:menu")
@@ -27,97 +108,69 @@ async def show_users(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("admin:show_user_"))
-async def show_user_data(callback: CallbackQuery) -> None:
-    user_id = int(callback.data.split("_")[-1])
-
-    try:
-        user = await get_user_by_tg_id(user_id)
-
-        msg = (
-            "Інформація про користувача:\n\n"
-            f"🆔 <b>User ID:</b> <code>{user.user_id}</code>\n"
-        )
-
-        if user.username:
-            msg += f"👤 <b>Username:</b> <code>{user.username}</code>\n"
-        if user.email:
-            msg += f"📧 <b>Email:</b> <code>{user.email}</code>\n"
-
-        await callback.message.edit_text(msg, reply_markup=admin_kb.show_user_data(user_id))
-        await callback.answer()
-
-    except Exception as e:
-        print(f"[ERROR] Show user data for admin: {e}")
-
-
-@router.callback_query(F.data.startswith("admin:show_user_orders_"))
-async def show_user_orders(callback: CallbackQuery) -> None:
-    user_id = int(callback.data.split("_")[-1])
-
-    try:
-        orders = await get_orders_by_tg_id(user_id)
-
-        msg = f"\n<i>Замовлення користувача (ID {user_id}):</i>\n\n"
-
-        for order in orders:
-            msg += f"📦 <b>ID:</b> <code>{order.id}</code>\n"
-            msg += f"💰 <b>Сума:</b> <code>{order.amount}</code>\n"
-            msg += f"🔔 <b>Статус:</b> <code>{order.status}</code>\n"
-            msg += f"⌚ <b>Створено:</b> <code>{order.created_at}</code>\n"
-            msg += f"💸 <b>Сплачено:</b> <code>{order.paid_at}</code>\n\n"
-
-        await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin_or_menu())
-        await callback.answer()
-
-    except Exception as e:
-        print(f"[ERROR] Show user orders for admin: {e}")
-
-
-@router.callback_query(F.data.startswith("admin:show_user_subscriptions_"))
-async def show_user_subscriptions(callback: CallbackQuery) -> None:
-    user_id = int(callback.data.split("_")[-1])
-
-    try:
-        subscriptions = await get_subscriptions_by_tg_id(user_id)
-
-        msg = f"\n<i>Доступи користувача (ID {user_id}):</i>\n\n"
-
-        for subscription in subscriptions:
-            msg += f"🎟️ <b>ID:</b> <code>{subscription.id}</code>\n"
-            msg += f"📦 <b>ID замовлення:</b> <code>{subscription.order_id}</code>\n"
-            msg += f"📅 <b>Початок доступу:</b> <code>{subscription.access_from}</code>\n"
-            msg += f"📅 <b>Кінець доступу:</b> <code>{subscription.access_to}</code>\n"
-            msg += f"🔔 <b>Статус:</b> <code>{subscription.status}</code>\n"
-            msg += f"⌚ <b>Створено:</b> <code>{subscription.created_at}</code>\n"
-
-        await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin_or_menu())
-        await callback.answer()
-
-    except Exception as e:
-        print(f"[ERROR] Show user subscriptions for admin: {e}")
-
-
 @router.callback_query(F.data == "admin:show_active_accesses")
 async def show_active_accesses(callback: CallbackQuery) -> None:
-    try:
-        active_subscriptions = await get_active_subscriptions()
+    active_subscriptions = await get_active_subscriptions()
+    if not active_subscriptions:
+        await callback.message.edit_text("Немає активних доступів.", reply_markup=admin_kb.back_to_admin_or_menu())
 
-        msg = "\n<i>Активні доступи користувачів:</i>\n\n"
+    msg = "\n<i>Активні доступи користувачів:</i>\n\n"
 
-        for subscription in active_subscriptions:
-            if subscription.user_id:
-                msg += f"🆔 <b>ID користувача:</b> <code>{subscription.user_id}</code>\n"
-            msg += f"🔔 <b>Статус:</b> <code>{subscription.status}</code>\n\n"
+    for subscription in active_subscriptions:
+        if subscription.user_id:
+            msg += f"🆔 <b>ID користувача:</b> <code>{subscription.user_id}</code>\n"
 
-        await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin_or_menu())
-        await callback.answer()
+        msg += f"📅 <b>Кінець доступу:</b> <code>{_normalize_date(subscription.access_to)}</code>\n"
+        msg += f"⏰ <b>Створено:</b> <code>{_normalize_date(subscription.created_at)}</code>\n"
 
-    except Exception as e:
-        print(f"[ERROR] Show active subscriptions for admin: {e}")
+    await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin_or_menu())
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:set_user_email_"))
+async def handle_set_user_email(callback: CallbackQuery, state: FSMContext) -> None:
+    user_id = int(callback.data.split("_")[-1])
+
+    await state.set_state(SetUserEmailState.email)
+    await state.update_data(user_id=user_id)
+
+    await callback.message.edit_text(
+        "Введіть нову електронну пошту користувача.\n"
+        "Для скасування дії введіть «-».",
+        reply_markup=None)
+
+    await callback.answer()
+
+
+@router.message(F.text, StateFilter(SetUserEmailState.email))
+async def state_set_user_email(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+
+    user_id = data.get("user_id")
+
+    if message.text == "-":
+        await state.clear()
+        await message.answer("❌ Дія скасована.", reply_markup=admin_kb.back_to_admin_or_menu())
+        return
+
+    set_email = await set_user_email(user_id, message.text)
+    if set_email.email == message.text:
+        await message.answer("Електронна пошта успішно змінена.", reply_markup=admin_kb.back_to_admin_or_menu())
+        await state.clear()
+        return
+
+    await message.answer(
+        "Сталася помилка під час зміни електронної пошти. Спробуйте пізніше.",
+        reply_markup=admin_kb.back_to_admin_or_menu()
+    )
+    await state.clear()
 
 
 @router.callback_query(F.data == "admin:back_to_menu")
 async def handle_back_to_menu(callback: CallbackQuery) -> None:
     await callback.message.edit_text("Виберіть дію:", reply_markup=admin_kb.menu())
     await callback.answer()
+
+
+def _normalize_date(date: datetime) -> str:
+    return date.strftime('%d.%m.%Y %H:%M:%S')

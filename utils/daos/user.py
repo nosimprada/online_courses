@@ -53,3 +53,18 @@ class UserDAO:
 
         users: Sequence[User] = result.scalars().all()
         return [UserReadSchemaDB.model_validate(user) for user in users]
+
+    @staticmethod
+    async def set_user_email(session: AsyncSession, tg_id: int, email: str) -> UserReadSchemaDB | None:
+        result = await session.execute(select(User).where(User.tg_id == tg_id))
+        user = result.scalars().first()
+
+        if user:
+            user.email = email
+
+            await session.commit()
+            await session.refresh(user)
+
+            return UserReadSchemaDB.model_validate(user)
+
+        return None
