@@ -47,8 +47,11 @@ def show_user_data(user_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def show_user_orders(user_id: int) -> InlineKeyboardMarkup:
+def show_user_subscriptions(user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+
+    builder.button(text="Відкрити всі доступи", callback_data=f"admin:open_all_accesses_{user_id}")
+    builder.button(text="Закрити всі доступи", callback_data=f"admin:close_all_accesses_{user_id}")
 
     builder.button(text="До користувача", callback_data=f"admin:show_user_{user_id}")
 
@@ -63,6 +66,18 @@ def show_user_orders(user_id: int) -> InlineKeyboardMarkup:
 def back_to_admin_or_menu() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
+    builder.button(text="В адмін-панель", callback_data="admin:back_to_menu")
+    builder.button(text="На головну", callback_data="back_to_menu")
+
+    builder.adjust(1)
+
+    return builder.as_markup()
+
+
+def back_to_admin_menu_user(user_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    builder.button(text="До користувача", callback_data=f"admin:show_user_{user_id}")
     builder.button(text="В адмін-панель", callback_data="admin:back_to_menu")
     builder.button(text="На головну", callback_data="back_to_menu")
 
