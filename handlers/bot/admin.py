@@ -180,8 +180,6 @@ async def open_all_accesses(callback: CallbackQuery) -> None:
     opened = await open_subscriptions_access(user_id)
     message_text, reply_markup = _are_subscriptions_updated(opened, "open", user_id)
 
-    print(opened)
-
     await callback.message.edit_text(message_text, reply_markup=reply_markup)
     await callback.answer()
 
@@ -192,8 +190,6 @@ async def close_all_accesses(callback: CallbackQuery) -> None:
 
     closed = await close_subscriptions_access(user_id)
     message_text, reply_markup = _are_subscriptions_updated(closed, "close", user_id)
-
-    print(closed)
 
     await callback.message.edit_text(message_text, reply_markup=reply_markup)
     await callback.answer()
