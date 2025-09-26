@@ -61,7 +61,7 @@ class SubscriptionDAO:
     async def get_active_subscriptions(session: AsyncSession) -> List[SubscriptionReadSchemaDB]:
         result = await session.execute(
             select(Subscription)
-            .where(Subscription.status == SubscriptionStatus.ACTIVE)
+            .where(Subscription.status.in_([SubscriptionStatus.ACTIVE, SubscriptionStatus.CREATED]))
             .order_by(Subscription.created_at.desc())
         )
 

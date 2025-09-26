@@ -47,11 +47,14 @@ def show_user_data(user_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def show_user_subscriptions(user_id: int) -> InlineKeyboardMarkup:
+def show_user_subscriptions(user_id: int, is_null: bool) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    builder.button(text="Відкрити всі доступи", callback_data=f"admin:open_all_accesses_{user_id}")
-    builder.button(text="Закрити всі доступи", callback_data=f"admin:close_all_accesses_{user_id}")
+    builder.button(text="Надати доступ", callback_data=f"admin:grant_access_{user_id}")
+
+    if not is_null:
+        builder.button(text="Відкрити всі доступи", callback_data=f"admin:open_all_accesses_{user_id}")
+        builder.button(text="Закрити всі доступи", callback_data=f"admin:close_all_accesses_{user_id}")
 
     builder.button(text="До користувача", callback_data=f"admin:show_user_{user_id}")
 

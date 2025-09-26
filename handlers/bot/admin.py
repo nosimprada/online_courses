@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Tuple
 
 from aiogram import Router, F
@@ -8,11 +8,13 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup
 
 import keyboards.admin as admin_kb
+from utils.enums.order import OrderStatus
 from utils.enums.subscription import SubscriptionStatus
-from utils.schemas.subscription import SubscriptionReadSchemaDB
-from utils.services.order import get_orders_by_tg_id
+from utils.schemas.order import OrderCreateSchemaDB
+from utils.schemas.subscription import SubscriptionReadSchemaDB, SubscriptionCreateSchemaDB
+from utils.services.order import get_orders_by_tg_id, create_order
 from utils.services.subscription import get_subscriptions_by_tg_id, get_active_subscriptions, \
-    close_subscriptions_access, open_subscriptions_access
+    close_subscriptions_access, open_subscriptions_access, create_subscription
 from utils.services.user import get_all_users, get_user_by_tg_id, set_user_email
 
 router = Router()
@@ -22,6 +24,10 @@ class SetUserEmailState(StatesGroup):
     email = State()
 
 
+class GrantSubscriptionState(StatesGroup):
+    access_to = State()
+
+
 @router.callback_query(F.data.startswith("admin:show_user_orders_"))
 async def show_user_orders(callback: CallbackQuery) -> None:
     user_id = int(callback.data.split("_")[-1])
@@ -29,6 +35,7 @@ async def show_user_orders(callback: CallbackQuery) -> None:
     orders = await get_orders_by_tg_id(user_id)
     if not orders:
         await callback.message.edit_text("Користувач не має замовлень.", reply_markup=admin_kb.back_to_admin_or_menu())
+        await callback.answer()
         return
 
     msg = f"\n<i>Замовлення користувача (ID {user_id}):</i>\n\n"
@@ -50,7 +57,11 @@ async def show_user_subscriptions(callback: CallbackQuery) -> None:
 
     subscriptions = await get_subscriptions_by_tg_id(user_id)
     if not subscriptions:
-        await callback.message.edit_text("Користувач не має доступів.", reply_markup=admin_kb.back_to_admin_or_menu())
+        await callback.message.edit_text(
+            "Користувач не має доступів.",
+            reply_markup=admin_kb.show_user_subscriptions(user_id, True)
+        )
+        await callback.answer()
         return
 
     msg = f"\n<i>Доступи користувача (ID {user_id}):</i>\n\n"
@@ -63,7 +74,7 @@ async def show_user_subscriptions(callback: CallbackQuery) -> None:
         msg += f"🔔 <b>Статус:</b> <code>{subscription.status}</code>\n"
         msg += f"⌚ <b>Створено:</b> <code>{_normalize_date(subscription.created_at)}</code>\n\n"
 
-    await callback.message.edit_text(msg, reply_markup=admin_kb.show_user_subscriptions(user_id))
+    await callback.message.edit_text(msg, reply_markup=admin_kb.show_user_subscriptions(user_id, False))
     await callback.answer()
 
 
@@ -74,6 +85,7 @@ async def show_user_data(callback: CallbackQuery) -> None:
     user = await get_user_by_tg_id(user_id)
     if not user:
         await callback.message.edit_text("Користувач не знайдено.", reply_markup=admin_kb.back_to_admin_or_menu())
+        await callback.answer()
         return
 
     msg = (
@@ -117,6 +129,8 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
     active_subscriptions = await get_active_subscriptions()
     if not active_subscriptions:
         await callback.message.edit_text("Немає активних доступів.", reply_markup=admin_kb.back_to_admin_or_menu())
+        await callback.answer()
+        return
 
     msg = "\n<i>Активні доступи користувачів:</i>\n\n"
 
@@ -125,7 +139,7 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
             msg += f"🆔 <b>ID користувача:</b> <code>{subscription.user_id}</code>\n"
 
         msg += f"📅 <b>Кінець доступу:</b> <code>{_normalize_date(subscription.access_to)}</code>\n"
-        msg += f"⏰ <b>Створено:</b> <code>{_normalize_date(subscription.created_at)}</code>\n"
+        msg += f"⏰ <b>Створено:</b> <code>{_normalize_date(subscription.created_at)}</code>\n\n"
 
     await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin_or_menu())
     await callback.answer()
@@ -147,40 +161,127 @@ async def handle_set_user_email(callback: CallbackQuery, state: FSMContext) -> N
 
 
 @router.message(F.text, StateFilter(SetUserEmailState.email))
-async def state_set_user_email(message: Message, state: FSMContext) -> None:
+async def input_set_user_email(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
-
     user_id = data.get("user_id")
 
     if message.text == "-":
         await state.clear()
-        await message.answer("❌ Дія скасована.", reply_markup=admin_kb.back_to_admin_or_menu())
+        await message.answer("❌ Дія скасована.", reply_markup=admin_kb.back_to_admin_menu_user(user_id))
         return
 
-    set_email = await set_user_email(user_id, message.text)
-    if set_email.email == message.text:
-        await message.answer(
-            "Електронна пошта успішно змінена.",
-            reply_markup=admin_kb.back_to_admin_menu_user(user_id)
-        )
-        await state.clear()
-        return
+    try:
+        set_email = await set_user_email(user_id, message.text)
+        if set_email and set_email.email == message.text:
+            await message.answer(
+                "✅ Електронна пошта успішно змінена.",
+                reply_markup=admin_kb.back_to_admin_menu_user(user_id)
+            )
+            await state.clear()
+            return
+
+    except Exception as e:
+        print(f"Error setting email for user {user_id}: {str(e)}")
 
     await message.answer(
-        "Сталася помилка під час зміни електронної пошти. Спробуйте пізніше.",
+        "❌ Сталася помилка під час зміни електронної пошти. Спробуйте пізніше.",
         reply_markup=admin_kb.back_to_admin_menu_user(user_id)
     )
     await state.clear()
+
+
+@router.callback_query(F.data.startswith("admin:grant_access_"))
+async def handle_grant_access(callback: CallbackQuery, state: FSMContext) -> None:
+    user_id = int(callback.data.split("_")[-1])
+
+    await state.set_state(GrantSubscriptionState.access_to)
+    await state.update_data(user_id=user_id)
+
+    await callback.message.edit_text(
+        "Введіть термін для надання доступу (у місяцях).\n"
+        "Для скасування дії введіть «-»."
+    )
+
+    await callback.answer()
+
+
+@router.message(F.text, StateFilter(GrantSubscriptionState.access_to))
+async def input_grant_access(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    user_id = data.get("user_id")
+
+    if message.text == "-":
+        await state.clear()
+        await message.answer("❌ Дія скасована.", reply_markup=admin_kb.back_to_admin_menu_user(user_id))
+        return
+
+    try:
+        months = int(message.text)
+        if months <= 0:
+            await message.answer(
+                "❌ Введіть позитивне число місяців.\n"
+                "Спробуйте ще раз або введіть «-» для скасування."
+            )
+            return
+    except ValueError:
+        await message.answer(
+            "❌ Введіть коректне число місяців.\n"
+            "Спробуйте ще раз або введіть «-» для скасування."
+        )
+        return
+
+    try:
+        order = await create_order(OrderCreateSchemaDB(
+            user_id=user_id,
+            amount=0.0,
+            status=OrderStatus.COMPLETED.value
+        ))
+
+        access_from = datetime.now()
+        access_to = access_from + timedelta(days=months * 30)
+
+        subscription = await create_subscription(SubscriptionCreateSchemaDB(
+            user_id=user_id,
+            order_id=order.id,
+            access_from=access_from,
+            access_to=access_to,
+            status=SubscriptionStatus.CREATED.value
+        ))
+
+        if subscription.user_id == user_id:
+            await message.answer(
+                f"✅ Доступ успішно надано користувачу (ID {user_id}) на {months} місяць(ів).\n"
+                f"📅 Доступ до: {_normalize_date(access_to)}",
+                reply_markup=admin_kb.back_to_admin_menu_user(user_id)
+            )
+            await state.clear()
+            return
+
+    except Exception as e:
+        print(f"Error granting access to user {user_id}: {str(e)}")
+        await message.answer(
+            "❌ Сталася помилка під час надання доступу. Спробуйте пізніше.",
+            reply_markup=admin_kb.back_to_admin_menu_user(user_id)
+        )
+        await state.clear()
 
 
 @router.callback_query(F.data.startswith("admin:open_all_accesses_"))
 async def open_all_accesses(callback: CallbackQuery) -> None:
     user_id = int(callback.data.split("_")[-1])
 
-    opened = await open_subscriptions_access(user_id)
-    message_text, reply_markup = _are_subscriptions_updated(opened, "open", user_id)
+    try:
+        opened = await open_subscriptions_access(user_id)
+        message_text, reply_markup = _are_subscriptions_updated(opened, "open", user_id)
+        await callback.message.edit_text(message_text, reply_markup=reply_markup)
 
-    await callback.message.edit_text(message_text, reply_markup=reply_markup)
+    except Exception as e:
+        print(f"Error opening access for user {user_id}: {str(e)}")
+        await callback.message.edit_text(
+            f"❌ Сталася помилка при відкритті доступів користувача (ID {user_id}).",
+            reply_markup=admin_kb.back_to_admin_or_menu()
+        )
+
     await callback.answer()
 
 
@@ -188,10 +289,18 @@ async def open_all_accesses(callback: CallbackQuery) -> None:
 async def close_all_accesses(callback: CallbackQuery) -> None:
     user_id = int(callback.data.split("_")[-1])
 
-    closed = await close_subscriptions_access(user_id)
-    message_text, reply_markup = _are_subscriptions_updated(closed, "close", user_id)
+    try:
+        closed = await close_subscriptions_access(user_id)
+        message_text, reply_markup = _are_subscriptions_updated(closed, "close", user_id)
+        await callback.message.edit_text(message_text, reply_markup=reply_markup)
 
-    await callback.message.edit_text(message_text, reply_markup=reply_markup)
+    except Exception as e:
+        print(f"Error closing access for user {user_id}: {str(e)}")
+        await callback.message.edit_text(
+            f"❌ Сталася помилка при закритті доступів користувача (ID {user_id}).",
+            reply_markup=admin_kb.back_to_admin_or_menu()
+        )
+
     await callback.answer()
 
 
@@ -232,4 +341,7 @@ def _are_subscriptions_updated(subscriptions: List[SubscriptionReadSchemaDB], ac
 
 
 def _normalize_date(date: datetime) -> str:
+    if date is None:
+        return "Не вказано"
+    
     return date.strftime('%d.%m.%Y %H:%M:%S')
