@@ -19,11 +19,6 @@ SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = int(os.getenv("SMTP_PORT"))
 SMTP_EMAIL = os.getenv("SMTP_EMAIL")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-"""
-    Я использовал Яндекс Почту для SMTP. https://yandex.ru/support/yandex-360/business/mail/ru/mail-clients/others#smtpsetting
-    SMTP_SERVER=smtp.yandex.ru
-    SMTP_PORT=465 (Для SSL)
-"""
 
 API_TOKEN = "123456"
 

@@ -1,6 +1,9 @@
+from typing import List, Dict, Any
+
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from utils.schemas.lesson import LessonReadSchemaDB
 from utils.schemas.user import UserReadSchemaDB
 
 
@@ -9,7 +12,7 @@ def menu() -> InlineKeyboardMarkup:
 
     builder.button(text="Користувачі", callback_data="admin:show_users")
     builder.button(text="Активні доступи", callback_data="admin:show_active_accesses")
-    builder.button(text="")
+    builder.button(text="Управління курсами", callback_data="admin:courses")
     builder.button(text="На головну", callback_data="back_to_menu")
 
     builder.adjust(1)
@@ -64,6 +67,41 @@ def show_user_subscriptions(user_id: int, is_null: bool) -> InlineKeyboardMarkup
     return builder.as_markup()
 
 
+def manage_courses_menu(modules: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    for module in modules:
+        builder.button(
+            text=f"Модуль №{module["module_number"]} ({module["lesson_count"]} ур.)",
+            callback_data=f"admin:manage_course_{module["module_number"]}"
+        )
+
+    builder.button(text="В адмін-панель", callback_data="admin:back_to_menu")
+
+    builder.adjust(1)
+
+    return builder.as_markup()
+
+
+def manage_course_menu(module_number: int, lessons: List[LessonReadSchemaDB]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    builder.button(text="Додати урок", callback_data=f"admin:add_module_lesson_{module_number}")
+
+    for lesson in lessons:
+        builder.button(
+            text=f"{lesson.title} №{lesson.lesson_number}",
+            callback_data=f"admin:manage_module_lesson_{module_number}_{lesson.lesson_number}"
+        )
+
+    builder.button(text="До управління курсами", callback_data="admin:courses")
+    builder.button(text="В адмін-панель", callback_data="admin:back_to_menu")
+
+    builder.adjust(1)
+
+    return builder.as_markup()
+
+
 def back_to_admin() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
@@ -79,6 +117,17 @@ def back_to_admin_or_user(user_id: int) -> InlineKeyboardMarkup:
 
     builder.button(text="До користувача", callback_data=f"admin:show_user_{user_id}")
     builder.button(text="В адмін-панель", callback_data="admin:back_to_menu")
+
+    builder.adjust(1)
+
+    return builder.as_markup()
+
+
+def back_to_module(module_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    builder.button(text="До модуля", callback_data=f"admin:manage_course_{module_id}")
+    builder.button(text="В адмін-панель", callback_data=f"admin:back_to_menu")
 
     builder.adjust(1)
 

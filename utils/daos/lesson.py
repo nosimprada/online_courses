@@ -1,4 +1,6 @@
-from sqlalchemy import select
+from typing import List, Dict, Any
+
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from utils.models.lesson import Lesson
@@ -25,6 +27,19 @@ class LessonDAO:
     @staticmethod
     async def get_by_id(session: AsyncSession, lesson_id: int) -> LessonReadSchemaDB | None:
         result = await session.execute(select(Lesson).where(Lesson.id == lesson_id))
+        lesson = result.scalars().first()
+
+        if lesson:
+            return LessonReadSchemaDB.model_validate(lesson)
+
+        return None
+
+    @staticmethod
+    async def get_by_module_and_lesson_number(session: AsyncSession, module: int, lesson) -> LessonReadSchemaDB | None:
+        result = await session.execute(
+            select(Lesson).where(Lesson.module_no == module, Lesson.lesson_no == lesson)
+        )
+
         lesson = result.scalars().first()
 
         if lesson:
@@ -65,3 +80,40 @@ class LessonDAO:
             await session.commit()
 
         return None
+
+    @staticmethod
+    async def get_all(session: AsyncSession) -> List[LessonReadSchemaDB]:
+        result = await session.execute(select(Lesson))
+        lessons = result.scalars().all()
+
+        return [LessonReadSchemaDB.model_validate(lesson) for lesson in lessons]
+
+    """
+        Modules
+    """
+
+    @staticmethod
+    async def get_modules_with_lesson_count(session: AsyncSession) -> List[Dict[str, Any]]:
+        result = await session.execute(
+            select(Lesson.module_no, func.count(Lesson.id).label("lesson_count"))
+            .group_by(Lesson.module_no).order_by(Lesson.module_no)
+        )
+
+        modules_data = result.all()
+
+        return [
+            {
+                "module_number": row.module_no,
+                "lesson_count": row.lesson_count
+            }
+            for row in modules_data
+        ]
+
+    @staticmethod
+    async def get_lessons_by_module(session: AsyncSession, module_number: int) -> List[LessonReadSchemaDB]:
+        result = await session.execute(
+            select(Lesson).where(Lesson.module_no == module_number).order_by(Lesson.lesson_no)
+        )
+
+        lessons = result.scalars().all()
+        return [LessonReadSchemaDB.model_validate(lesson) for lesson in lessons]

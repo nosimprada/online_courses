@@ -17,8 +17,7 @@ async def menu(message: Message) -> None:
     # TEMP: Пользователь добавляется сразу, а не после подтверждения почтой или токеном
     await create_user(UserCreateSchemaDB(
         user_id=message.from_user.id,
-        username=message.from_user.username,
-        email="admin@test.com"
+        username=message.from_user.username
     ))
 
     await message.answer(f"Hi, {message.from_user.first_name}!", reply_markup=start_kb.menu(is_admin))
