@@ -67,9 +67,6 @@ async def main() -> None:
     await server.serve()
 
 
-# Комментарий
-
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     asyncio.run(main())
