@@ -10,6 +10,15 @@ import os
 
 from utils.database import Base
 
+# Импортируем ВСЕ модели, чтобы Alembic их увидел
+from utils.models.user import User
+from utils.models.order import Order  
+from utils.models.redeem_token import RedeemToken
+from utils.models.short_code import ShortCode
+from utils.models.subscription import Subscription
+from utils.models.lesson import Lesson
+from utils.models.ticket import Ticket
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
