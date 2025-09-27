@@ -18,16 +18,15 @@ async def get_user_by_tg_id(tg_id: int) -> UserReadSchemaDB | None:
         return await UserDAO.get_by_tg_id(session, tg_id)
 
 
-async def get_user_by_email(email: str) -> UserReadSchemaDB | None:
-    async with AsyncSessionLocal() as session:
-        return await UserDAO.get_user_by_email(session, email)
+# async def get_user_by_email(email: str) -> UserReadSchemaDB | None:
+#     async with AsyncSessionLocal() as session:
+#         return await UserDAO.get_user_by_email(session, email)
 
 
 async def get_all_users() -> List[UserReadSchemaDB]:
     async with AsyncSessionLocal() as session:
         return await UserDAO.get_all_users(session)
 
-
-async def set_user_email(tg_id: int, email: str) -> UserReadSchemaDB | None:
-    async with AsyncSessionLocal() as session:
-        return await UserDAO.set_user_email(session, tg_id, email)
+# async def set_user_email(tg_id: int, email: str) -> UserReadSchemaDB | None:
+#     async with AsyncSessionLocal() as session:
+#         return await UserDAO.set_user_email(session, tg_id, email)

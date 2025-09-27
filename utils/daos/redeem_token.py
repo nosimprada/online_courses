@@ -1,13 +1,11 @@
-from typing import List
-
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from utils.models.redeem_token import RedeemToken
 from utils.schemas.redeem_token import (
-    RedeemTokenCreateSchema, 
+    RedeemTokenCreateSchema,
     RedeemTokenReadSchema
 )
+
 
 class RedeemTokenDAO:
     @staticmethod

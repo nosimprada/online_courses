@@ -1,8 +1,8 @@
+from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
-from datetime import datetime
 
 # class RedeemToken(Base):
 #     __tablename__ = "redeem_tokens"
@@ -24,12 +24,12 @@ class RedeemTokenCreateSchema(BaseModel):
     order_id: int
     token_hash: str
 
+
 class RedeemTokenReadSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     order_id: int
     token_hash: str
     created_at: datetime
     used_at: Optional[datetime] = None
-    
-    class Config:
-        orm_mode = True

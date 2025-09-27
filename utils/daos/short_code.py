@@ -1,14 +1,11 @@
-from typing import List
-
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from utils.models.short_code import ShortCode
-
 from utils.schemas.short_code import (
-    ShortCodeCreateSchema, 
+    ShortCodeCreateSchema,
     ShortCodeReadSchema
 )
+
 
 class ShortCodeDAO:
     @staticmethod
