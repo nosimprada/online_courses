@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, SERVER_PORT
 from handlers import routers
+from api.routes import orders
 
 dp = Dispatcher()
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
@@ -17,6 +18,8 @@ dp.include_routers(*routers)
 
 app = FastAPI(title="Online Courses API", version="1.0.0")
 
+# Подключаем API роутеры
+app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
 
 # Основные эндпоинты
 @app.get("/")
