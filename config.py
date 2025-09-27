@@ -25,7 +25,10 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
     SMTP_PORT=465 (Для SSL)
 """
 
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+API_TOKEN = "123456"
+
+# Webhook настройки
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://yourdomain.com/webhook")
 WEBHOOK_PATH = "/webhook"
 
-SERVER_PORT = int(os.getenv("SERVER_PORT"))
+SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))  # По умолчанию 8000
