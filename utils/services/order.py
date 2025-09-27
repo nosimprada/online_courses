@@ -3,7 +3,10 @@ from typing import List
 from utils.daos.order import OrderDAO
 from utils.database import AsyncSessionLocal
 from utils.encryption import encrypt
-from utils.random_generate import generate_token_hash
+from utils.random_generate import (
+    generate_short_code, 
+    generate_token_hash
+)
 from utils.schemas.order import (
     OrderCreateSchemaDB, 
     OrderReadSchemaDB
@@ -39,8 +42,9 @@ async def create_invoice_order_token_code(order_data: OrderCreateSchemaDB) -> Or
     )
 
     redeem_token = await create_redeem_token(redeem_token_data)
+    print(redeem_token)
 
-    code = generate_token_hash(6)
+    code = generate_short_code()
     code_hash = encrypt(code)
     short_code_data = ShortCodeCreateSchema(
         order_id=order.id,
@@ -48,5 +52,5 @@ async def create_invoice_order_token_code(order_data: OrderCreateSchemaDB) -> Or
     )
 
     short_code = await create_short_code(short_code_data)
-
-    
+    print(short_code)
+    return order
