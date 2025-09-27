@@ -7,7 +7,8 @@ from sqlalchemy import (
     Enum,
     Float,
     Integer,
-    DateTime
+    DateTime,
+    String
 )
 
 from utils.database import Base
@@ -18,7 +19,10 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, unique=True, nullable=True, index=True)
+    invoice_id = Column(String, unique=True, nullable=True, index=True)
     user_id = Column(BigInteger, nullable=True, index=True)
+    email = Column(String, unique=True, nullable=True, index=True)
     amount = Column(Float, nullable=False)
     status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
     created_at = Column(

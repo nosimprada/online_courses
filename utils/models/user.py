@@ -18,7 +18,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     tg_id = Column(BigInteger, unique=True, nullable=False, index=True)
     username = Column(String, nullable=True, index=True)
-    email = Column(String, unique=True, nullable=True, index=True)
+    
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None),
