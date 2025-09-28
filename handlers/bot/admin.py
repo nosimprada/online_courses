@@ -6,16 +6,17 @@ from aiogram.enums import ContentType
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InputMediaDocument, InputMediaVideo
 
 import keyboards.admin as admin_kb
 from utils.enums.order import OrderStatus
 from utils.enums.subscription import SubscriptionStatus
-from utils.schemas.lesson import LessonCreateSchemaDB
+from utils.schemas.lesson import LessonCreateSchemaDB, LessonUpdateSchemaDB, LessonReadSchemaDB
 from utils.schemas.order import OrderCreateSchemaDB
 from utils.schemas.subscription import SubscriptionReadSchemaDB, SubscriptionCreateSchemaDB
 from utils.services.lesson import get_all_modules_with_lesson_count, get_lessons_by_module, create_lesson, \
-    get_lesson_by_module_and_lesson_number
+    get_lesson_by_module_and_lesson_number, delete_lesson, get_lesson_by_id
+from utils.services.lesson import update_lesson
 from utils.services.order import get_orders_by_tg_id, create_order
 from utils.services.subscription import get_subscriptions_by_tg_id, get_active_subscriptions, \
     close_subscriptions_access, open_subscriptions_access, create_subscription
@@ -35,6 +36,18 @@ class GrantSubscriptionState(StatesGroup):
 class CreateLessonState(StatesGroup):
     title = State()
     video = State()
+    pdf = State()
+
+
+class UpdateLessonTitle(StatesGroup):
+    title = State()
+
+
+class UpdateLessonVideo(StatesGroup):
+    video = State()
+
+
+class UpdateLessonPDF(StatesGroup):
     pdf = State()
 
 
@@ -105,8 +118,6 @@ async def show_user_data(callback: CallbackQuery) -> None:
 
     if user.username:
         msg += f"👤 <b>Username:</b> @{user.username}\n"
-    if user.email:
-        msg += f"📧 <b>Email:</b> <code>{user.email}</code>\n"
 
     msg += f"📅 <b>Створено:</b> <code>{_normalize_date(user.created_at)}</code>\n"
 
@@ -318,12 +329,20 @@ async def close_all_accesses(callback: CallbackQuery) -> None:
 async def manage_courses(callback: CallbackQuery) -> None:
     modules = await get_all_modules_with_lesson_count()
 
+    if modules is None:
+        modules = []
+
     if not modules:
-        await callback.message.edit_text("Немає активних модулів.", reply_markup=admin_kb.back_to_admin())
+        await callback.message.edit_text(
+            "Немає активних модулів.", reply_markup=admin_kb.manage_courses_menu(modules)
+        )
         await callback.answer()
         return
 
-    await callback.message.edit_text("Активні модулі:\n", reply_markup=admin_kb.manage_courses_menu(modules))
+    await callback.message.edit_text(
+        "Активні модулі:\n",
+        reply_markup=admin_kb.manage_courses_menu(modules)
+    )
     await callback.answer()
 
 
@@ -347,14 +366,16 @@ async def manage_course(callback: CallbackQuery) -> None:
 @router.callback_query(F.data.startswith("admin:add_module_lesson_"))
 async def add_module_lesson(callback: CallbackQuery, state: FSMContext) -> None:
     module_number = int(callback.data.split("_")[-1])
-    lesson_number = len(await get_lessons_by_module(module_number)) + 1
+
+    lessons = await get_lessons_by_module(module_number)
+    lesson_number = _find_next_available_lesson_number(lessons)
 
     await state.update_data(module_number=module_number, lesson_number=lesson_number)
     await state.set_state(CreateLessonState.title)
 
     await callback.message.edit_text(
         "Введіть заголовок урока:\n"
-        "Для скасування дії введіть «-».",
+        "Для скасування дії введіть «-»."
     )
     await callback.answer()
 
@@ -426,13 +447,226 @@ async def manage_module_lesson(callback: CallbackQuery) -> None:
         f"📅 Створено: {_normalize_date(lesson.created_at)}\n"
     )
 
-    # TODO: переделать под более разумную версию
-    if lesson.video_file_id:
-        await callback.message.answer_video(video=lesson.video_file_id)
-    if lesson.pdf_file_id:
-        await callback.message.answer_document(document=lesson.pdf_file_id)
+    if not callback.message.text:
+        await callback.message.answer(
+            msg,
+            reply_markup=admin_kb.manage_module_lesson_menu(module_number, lesson_number, lesson)
+        )
+    else:
+        await callback.message.edit_text(
+            msg,
+            reply_markup=admin_kb.manage_module_lesson_menu(module_number, lesson_number, lesson)
+        )
 
-    await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_module(module_number))
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:show_video_"))
+async def show_lesson_video(callback: CallbackQuery) -> None:
+    module_number, lesson_number = _get_module_lesson_number(callback)
+
+    lesson = await get_lesson_by_module_and_lesson_number(module_number, lesson_number)
+
+    if not lesson:
+        await callback.message.edit_text(
+            f"❌ Урок №{lesson_number} у модулі №{module_number} не знайдено.",
+            reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
+        )
+        await callback.answer()
+        return
+
+    await callback.message.edit_media(
+        InputMediaVideo(media=lesson.video_file_id),
+        reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:show_pdf_"))
+async def show_lesson_pdf(callback: CallbackQuery) -> None:
+    module_number, lesson_number = _get_module_lesson_number(callback)
+
+    lesson = await get_lesson_by_module_and_lesson_number(module_number, lesson_number)
+
+    if not lesson:
+        await callback.message.edit_text(
+            f"❌ Урок №{lesson_number} у модулі №{module_number} не знайдено.",
+            reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
+        )
+        await callback.answer()
+        return
+
+    await callback.message.edit_media(
+        InputMediaDocument(media=lesson.pdf_file_id),
+        reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:change_title_"))
+async def update_lesson_title(callback: CallbackQuery, state: FSMContext) -> None:
+    module_number, lesson_number = _get_module_lesson_number(callback)
+
+    await state.update_data(module_number=module_number, lesson_number=lesson_number)
+    await state.set_state(UpdateLessonTitle.title)
+
+    await callback.message.edit_text(
+        "Введіть заголовок урока:\n"
+        "Для скасування дії введіть «-»."
+    )
+    await callback.answer()
+
+
+@router.message(F.text, StateFilter(UpdateLessonTitle.title))
+async def update_lesson_title_text(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+
+    module_number = data.get("module_number")
+    lesson_number = data.get("lesson_number")
+
+    if message.text == "-":
+        await state.clear()
+        await message.answer(
+            "❌ Дія скасована.",
+            reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
+        )
+        return
+
+    await _process_update_module_lesson(
+        message, state,
+        update_type="title",
+        new_value=message.text,
+        success_message=f"✅ Заголовок урока успішно змінено на '{message.text}'."
+    )
+
+
+@router.callback_query(F.data.startswith("admin:change_video_"))
+async def update_lesson_video(callback: CallbackQuery, state: FSMContext) -> None:
+    module_number, lesson_number = _get_module_lesson_number(callback)
+
+    await state.update_data(module_number=module_number, lesson_number=lesson_number)
+    await state.set_state(UpdateLessonVideo.video)
+
+    await callback.message.answer(
+        "Надішліть відео уроку:\n"
+        "Для скасування дії введіть «-»."
+    )
+    await callback.answer()
+
+
+@router.message(F.content_type == ContentType.VIDEO, StateFilter(UpdateLessonVideo.video))
+async def update_lesson_video_content(message: Message, state: FSMContext) -> None:
+    await _process_update_module_lesson(
+        message, state,
+        update_type="video_file_id",
+        new_value=message.video.file_id,
+        success_message="✅ Відео урока успішно оновлено."
+    )
+
+
+@router.message(F.text == "-", StateFilter(UpdateLessonVideo.video))
+async def cancel_update_lesson_video(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+
+    module_number = data.get("module_number")
+    lesson_number = data.get("lesson_number")
+
+    await message.answer(
+        "❌ Дія скасована.",
+        reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
+    )
+    await state.clear()
+
+
+@router.callback_query(F.data.startswith("admin:change_pdf_"))
+async def update_lesson_pdf(callback: CallbackQuery, state: FSMContext) -> None:
+    module_number, lesson_number = _get_module_lesson_number(callback)
+
+    await state.update_data(module_number=module_number, lesson_number=lesson_number)
+    await state.set_state(UpdateLessonPDF.pdf)
+
+    await callback.message.answer(
+        "Надішліть PDF файл уроку:\n"
+        "Для скасування дії введіть «-»."
+    )
+    await callback.answer()
+
+
+@router.message(F.content_type == ContentType.DOCUMENT, StateFilter(UpdateLessonPDF.pdf))
+async def update_lesson_pdf_content(message: Message, state: FSMContext) -> None:
+    pdf_name = message.document.file_name if message.document.file_name else "файл"
+    success_message = f"✅ PDF урока успішно обновлено ({pdf_name})."
+
+    await _process_update_module_lesson(
+        message, state,
+        update_type="pdf_file_id",
+        new_value=message.document.file_id,
+        success_message=success_message
+    )
+
+
+@router.message(F.text == "-", StateFilter(UpdateLessonPDF.pdf))
+async def cancel_update_lesson_pdf(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+
+    module_number = data.get("module_number")
+    lesson_number = data.get("lesson_number")
+
+    await message.answer(
+        "❌ Дія скасована.",
+        reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
+    )
+    await state.clear()
+
+
+@router.callback_query(F.data.startswith("admin:ask_delete_lesson_"))
+async def ask_delete_module_lesson(callback: CallbackQuery) -> None:
+    module_number, lesson_number = _get_module_lesson_number(callback)
+
+    await callback.message.edit_text(
+        f"Ви дійсно хочете видалити урок {lesson_number} модуля {module_number}?",
+        reply_markup=admin_kb.delete_module_lesson(module_number, lesson_number)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:delete_lesson_"))
+async def delete_module_lesson(callback: CallbackQuery) -> None:
+    module_number, lesson_number = _get_module_lesson_number(callback)
+
+    try:
+        lesson = await get_lesson_by_module_and_lesson_number(module_number, lesson_number)
+
+        if not lesson:
+            await callback.message.edit_text(
+                f"❌ Урок №{lesson_number} у модулі №{module_number} не знайдено.",
+                reply_markup=admin_kb.back_to_module(module_number)
+            )
+            await callback.answer()
+            return
+
+        await delete_lesson(lesson.id)
+
+        deleted = await get_lesson_by_id(lesson.id)
+
+        if not deleted:
+            await callback.message.edit_text(
+                f"✅ Урок {lesson_number} модуля {module_number} успішно видалено.",
+                reply_markup=admin_kb.back_to_module(module_number)
+            )
+        else:
+            await callback.message.edit_text(
+                f"❌ Не вдалося видалити урок {lesson_number} модуля {module_number}. Спробуйте пізніше.",
+                reply_markup=admin_kb.back_to_module(module_number)
+            )
+
+    except Exception as e:
+        print(f"Error deleting lesson {lesson_number} in module {module_number}: {str(e)}")
+        await callback.message.edit_text(
+            f"❌ Сталася помилка під час видалення урока {lesson_number} модуля {module_number}. Спробуйте пізніше.",
+            reply_markup=admin_kb.back_to_module(module_number)
+        )
+
     await callback.answer()
 
 
@@ -519,8 +753,75 @@ async def _process_create_module_lesson(message: Message, state: FSMContext, pdf
         await state.clear()
 
 
+async def _process_update_module_lesson(
+        message: Message, state: FSMContext,
+        update_type: str, new_value: str,
+        success_message: str
+) -> None:
+    data = await state.get_data()
+
+    module_number = data.get("module_number")
+    lesson_number = data.get("lesson_number")
+
+    try:
+        update_data = {
+            "module_no": module_number,
+            "lesson_no": lesson_number,
+            update_type: new_value
+        }
+
+        updated = await update_lesson(LessonUpdateSchemaDB(**update_data))
+
+        if updated:
+            updated_field_value = getattr(updated, update_type, None)
+            if updated_field_value == new_value:
+                await message.answer(
+                    success_message,
+                    reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
+                )
+                await state.clear()
+                return
+
+        raise Exception("Update verification failed")
+
+    except Exception as e:
+        print(f"Error updating {update_type} for lesson {lesson_number} in module {module_number}: {str(e)}")
+
+        error_messages = {
+            "title": "❌ Сталася помилка під час зміни назви уроку. Спробуйте пізніше.",
+            "video_file_id": "❌ Сталася помилка під час оновлення відео. Спробуйте пізніше.",
+            "pdf_file_id": "❌ Сталася помилка під час оновлення PDF. Спробуйте пізніше."
+        }
+
+        error_message = error_messages.get(update_type, "❌ Сталася помилка під час оновлення уроку. Спробуйте пізніше.")
+
+        await message.answer(
+            error_message,
+            reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
+        )
+        await state.clear()
+
+
+def _find_next_available_lesson_number(lessons: List[LessonReadSchemaDB]) -> int:
+    if not lessons:
+        return 1
+
+    lesson_numbers = sorted([lesson.lesson_number for lesson in lessons])
+
+    for i, lesson_number in enumerate(lesson_numbers, start=1):
+        if lesson_number != i:
+            return i
+
+    return max(lesson_numbers) + 1
+
+
 def _normalize_date(date: datetime) -> str:
     if date is None:
         return "Не вказано"
 
     return date.strftime('%d.%m.%Y %H:%M:%S')
+
+
+def _get_module_lesson_number(callback: CallbackQuery) -> Tuple[int, int]:
+    parts = callback.data.split("_")
+    return int(parts[-2]), int(parts[-1])

@@ -14,6 +14,7 @@ class LessonCreateSchemaDB(BaseModel):
 class LessonReadSchemaDB(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: int
     module_number: int = Field(alias="module_no")
     lesson_number: int = Field(alias="lesson_no")
     title: str
