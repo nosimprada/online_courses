@@ -56,8 +56,12 @@ async def show_user_orders(callback: CallbackQuery) -> None:
     user_id = int(callback.data.split("_")[-1])
 
     orders = await get_orders_by_tg_id(user_id)
+
     if not orders:
-        await callback.message.edit_text("Користувач не має замовлень.", reply_markup=admin_kb.back_to_admin())
+        await callback.message.edit_text(
+            "Користувач не має замовлень.",
+            reply_markup=admin_kb.back_to_admin_or_user(user_id)
+        )
         await callback.answer()
         return
 
@@ -67,15 +71,15 @@ async def show_user_orders(callback: CallbackQuery) -> None:
         msg += f"📦 <b>ID:</b> <code>{order.id}</code>\n"
         msg += f"💰 <b>Сума:</b> <code>{order.amount}</code>\n"
         msg += f"🔔 <b>Статус:</b> <code>{order.status}</code>\n"
-        msg += f"⌚ <b>Створено:</b> <code>{_normalize_date(order.created_at)}</code>\n"
-        msg += f"💸 <b>Сплачено:</b> <code>{_normalize_date(order.paid_at)}</code>\n\n"
+        msg += f"⌚ <b>Створено:</b> <code>{_format_date(order.created_at)}</code>\n"
+        msg += f"💸 <b>Сплачено:</b> <code>{_format_date(order.paid_at)}</code>\n\n"
 
     await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin_or_user(user_id))
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("admin:show_user_subscriptions_"))
-async def show_user_subscriptions(callback: CallbackQuery) -> None:
+async def show_user_subscriptions_page(callback: CallbackQuery) -> None:
     user_id = int(callback.data.split("_")[-1])
 
     subscriptions = await get_subscriptions_by_tg_id(user_id)
@@ -95,7 +99,7 @@ async def show_user_subscriptions(callback: CallbackQuery) -> None:
         msg += f"📅 <b>Початок доступу:</b> <code>{subscription.access_from}</code>\n"
         msg += f"📅 <b>Кінець доступу:</b> <code>{subscription.access_to}</code>\n"
         msg += f"🔔 <b>Статус:</b> <code>{subscription.status}</code>\n"
-        msg += f"⌚ <b>Створено:</b> <code>{_normalize_date(subscription.created_at)}</code>\n\n"
+        msg += f"⌚ <b>Створено:</b> <code>{_format_date(subscription.created_at)}</code>\n\n"
 
     await callback.message.edit_text(msg, reply_markup=admin_kb.show_user_subscriptions(user_id, False))
     await callback.answer()
@@ -119,7 +123,7 @@ async def show_user_data(callback: CallbackQuery) -> None:
     if user.username:
         msg += f"👤 <b>Username:</b> @{user.username}\n"
 
-    msg += f"📅 <b>Створено:</b> <code>{_normalize_date(user.created_at)}</code>\n"
+    msg += f"📅 <b>Створено:</b> <code>{_format_date(user.created_at)}</code>\n"
 
     msg += f"\n📋 Оберіть категорію для перегляду:"
 
@@ -133,21 +137,23 @@ async def menu(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(F.data == "admin:show_users")
-async def show_users(callback: CallbackQuery) -> None:
+@router.callback_query(F.data.startswith("admin:show_users_page_"))
+async def show_users_page(callback: CallbackQuery) -> None:
+    page = int(callback.data.split("_")[-1])
+
     users = await get_all_users()
 
     await callback.message.edit_text(
         f"Кількість користувачів: <code>{len(users)}</code>",
-        reply_markup=admin_kb.show_users(users)
+        reply_markup=admin_kb.show_users(users, page)
     )
-
     await callback.answer()
 
 
 @router.callback_query(F.data == "admin:show_active_accesses")
 async def show_active_accesses(callback: CallbackQuery) -> None:
     active_subscriptions = await get_active_subscriptions()
+
     if not active_subscriptions:
         await callback.message.edit_text("Немає активних доступів.", reply_markup=admin_kb.back_to_admin())
         await callback.answer()
@@ -159,8 +165,8 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
         if subscription.user_id:
             msg += f"🆔 <b>ID користувача:</b> <code>{subscription.user_id}</code>\n"
 
-        msg += f"📅 <b>Кінець доступу:</b> <code>{_normalize_date(subscription.access_to)}</code>\n"
-        msg += f"⏰ <b>Створено:</b> <code>{_normalize_date(subscription.created_at)}</code>\n\n"
+        msg += f"📅 <b>Кінець доступу:</b> <code>{_format_date(subscription.access_to)}</code>\n"
+        msg += f"⏰ <b>Створено:</b> <code>{_format_date(subscription.created_at)}</code>\n\n"
 
     await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin())
     await callback.answer()
@@ -222,7 +228,6 @@ async def handle_grant_access(callback: CallbackQuery, state: FSMContext) -> Non
         "Введіть термін для надання доступу (у місяцях).\n"
         "Для скасування дії введіть «-»."
     )
-
     await callback.answer()
 
 
@@ -272,7 +277,7 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
         if subscription.user_id == user_id:
             await message.answer(
                 f"✅ Доступ успішно надано користувачу (ID {user_id}) на {months} місяць(ів).\n"
-                f"📅 Доступ до: {_normalize_date(access_to)}",
+                f"📅 Доступ до: {_format_date(access_to)}",
                 reply_markup=admin_kb.back_to_admin_or_user(user_id)
             )
             await state.clear()
@@ -325,8 +330,10 @@ async def close_all_accesses(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(F.data == "admin:courses")
-async def manage_courses(callback: CallbackQuery) -> None:
+@router.callback_query(F.data.startswith("admin:courses_page_"))
+async def manage_courses_page(callback: CallbackQuery) -> None:
+    page = int(callback.data.split("_")[-1])
+
     modules = await get_all_modules_with_lesson_count()
 
     if modules is None:
@@ -334,23 +341,27 @@ async def manage_courses(callback: CallbackQuery) -> None:
 
     if not modules:
         await callback.message.edit_text(
-            "Немає активних модулів.", reply_markup=admin_kb.manage_courses_menu(modules)
+            "Немає активних модулів.", reply_markup=admin_kb.manage_courses_menu(modules, page)
         )
         await callback.answer()
         return
 
     await callback.message.edit_text(
         "Активні модулі:\n",
-        reply_markup=admin_kb.manage_courses_menu(modules)
+        reply_markup=admin_kb.manage_courses_menu(modules, page)
     )
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("admin:manage_course_"))
-async def manage_course(callback: CallbackQuery) -> None:
-    module_number = int(callback.data.split("_")[-1])
+@router.callback_query(F.data.startswith("admin:manage_course_page_"))
+async def manage_course_page(callback: CallbackQuery) -> None:
+    parts = callback.data.split("_")
+
+    module_number = int(parts[-2])
+    page = int(parts[-1])
 
     lessons = await get_lessons_by_module(module_number)
+
     if not lessons:
         await callback.message.edit_text("Немає модуля з цим номером.", reply_markup=admin_kb.back_to_admin())
         await callback.answer()
@@ -358,7 +369,7 @@ async def manage_course(callback: CallbackQuery) -> None:
 
     await callback.message.edit_text(
         f"Активні уроки модуля №{module_number}:",
-        reply_markup=admin_kb.manage_course_menu(module_number, lessons)
+        reply_markup=admin_kb.manage_course_menu(module_number, lessons, page)
     )
     await callback.answer()
 
@@ -424,10 +435,7 @@ async def skip_add_module_lesson_pdf(message: Message, state: FSMContext) -> Non
 
 @router.callback_query(F.data.startswith("admin:manage_module_lesson_"))
 async def manage_module_lesson(callback: CallbackQuery) -> None:
-    parts = callback.data.split("_")
-
-    module_number = int(parts[-2])
-    lesson_number = int(parts[-1])
+    module_number, lesson_number = _get_module_lesson_number(callback)
 
     lesson = await get_lesson_by_module_and_lesson_number(module_number, lesson_number)
 
@@ -444,7 +452,7 @@ async def manage_module_lesson(callback: CallbackQuery) -> None:
         f"📝 Назва: {lesson.title}\n"
         f"🎥 Відео: {'✅ Є' if lesson.video_file_id else '❌ Немає'}\n"
         f"📄 PDF: {'✅ Є' if lesson.pdf_file_id else '❌ Немає'}\n"
-        f"📅 Створено: {_normalize_date(lesson.created_at)}\n"
+        f"📅 Створено: {_format_date(lesson.created_at)}\n"
     )
 
     if not callback.message.text:
@@ -815,7 +823,7 @@ def _find_next_available_lesson_number(lessons: List[LessonReadSchemaDB]) -> int
     return max(lesson_numbers) + 1
 
 
-def _normalize_date(date: datetime) -> str:
+def _format_date(date: datetime) -> str:
     if date is None:
         return "Не вказано"
 
