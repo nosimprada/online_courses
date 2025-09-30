@@ -103,7 +103,7 @@ async def payment_completed(request: Request):
             order = await get_order_by_order_id(order_id)
 
             if order:
-                await update_order_status(order_id, OrderStatus.COMPLETED)
+                await update_order_status(order_id, OrderStatus.COMPLETED.value)
 
                 now = datetime.now()
 
@@ -111,7 +111,7 @@ async def payment_completed(request: Request):
                     user_id=order.user_id,
                     order_id=order.id,
                     access_from=now,
-                    access_to=now + timedelta(days=90),  # TODO: 3 месяца
+                    access_to=now + timedelta(days=90),  # TODO: 3 месяца, если другое - подредактируй
                     status=SubscriptionStatus.CREATED.value,
                 ))
 
