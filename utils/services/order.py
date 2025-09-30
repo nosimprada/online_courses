@@ -3,12 +3,13 @@ from typing import List
 from utils.daos.order import OrderDAO
 from utils.database import AsyncSessionLocal
 from utils.encryption import encrypt
+from utils.enums.order import OrderStatus
 from utils.random_generate import (
-    generate_short_code, 
+    generate_short_code,
     generate_token_hash
 )
 from utils.schemas.order import (
-    OrderCreateSchemaDB, 
+    OrderCreateSchemaDB,
     OrderReadSchemaDB
 )
 from utils.schemas.redeem_token import (
@@ -29,13 +30,23 @@ async def get_orders_by_tg_id(tg_id: int) -> List[OrderReadSchemaDB]:
         return await OrderDAO.get_by_tg_id(session, tg_id)
 
 
-#-------------------------------Кастомные сервисы-------------------------------
+async def get_order_by_order_id(order_id: int) -> OrderReadSchemaDB | None:
+    async with AsyncSessionLocal() as session:
+        return await OrderDAO.get_by_order_id(session, order_id)
 
-#Создание заказа, токена, кода с сайта. 
+
+async def update_order_status(order_id: int, status: OrderStatus) -> OrderReadSchemaDB | None:
+    async with AsyncSessionLocal() as session:
+        return await OrderDAO.update_status(session, order_id, status)
+
+
+# -------------------------------Кастомные сервисы-------------------------------
+
+# Создание заказа, токена, кода с сайта.
 async def create_invoice_order_token_code(order_data: OrderCreateSchemaDB) -> OrderReadSchemaDB:
     order = await create_order(order_data)
     token = generate_token_hash()
-    token_hash = encrypt(token) 
+    token_hash = encrypt(token)
     redeem_token_data = RedeemTokenCreateSchema(
         order_id=order.id,
         token_hash=token_hash

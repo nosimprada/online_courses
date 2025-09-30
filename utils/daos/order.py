@@ -3,8 +3,10 @@ from typing import List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from utils.enums.order import OrderStatus
 from utils.models.order import Order
 from utils.schemas.order import OrderCreateSchemaDB, OrderReadSchemaDB
+
 
 # class OrderCreateSchemaDB(BaseModel):
 #     user_id: Optional[int] = None
@@ -39,5 +41,30 @@ class OrderDAO:
 
         if orders:
             return [OrderReadSchemaDB.model_validate(order) for order in orders]
+
+        return None
+
+    @staticmethod
+    async def get_by_order_id(session: AsyncSession, order_id: int) -> OrderReadSchemaDB | None:
+        result = await session.execute(select(Order).where(Order.order_id == order_id))
+        order = result.scalars().first()
+
+        if order:
+            return OrderReadSchemaDB.model_validate(order)
+
+        return None
+
+    @staticmethod
+    async def update_status(session: AsyncSession, order_id: int, status: OrderStatus) -> OrderReadSchemaDB | None:
+        result = await session.execute(select(Order).where(Order.order_id == order_id))
+        order = result.scalars().first()
+
+        if order:
+            order.status = status
+
+            await session.commit()
+            await session.refresh(order)
+
+            return OrderReadSchemaDB.model_validate(order)
 
         return None
