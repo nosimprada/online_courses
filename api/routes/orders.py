@@ -122,7 +122,7 @@ async def payment_completed(request: Request):
                     order.email,
                     "You've been registered",
                     f"Token: {token} | Access code: {access_code}"
-                )
+                )  # TODO: Возвращается True после успешной отправки, можешь обработать
 
             print(f"Обрабатываем успешную оплату для заказа {order_id}")
 
