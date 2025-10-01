@@ -20,8 +20,8 @@ class CourseMiddleware(BaseMiddleware):
             user: User = data.get("event_from_user")
 
             if user:
-                # if user.id == ADMIN_CHAT_ID:
-                #     return await handler(event, data)
+                if user.id == ADMIN_CHAT_ID:
+                    return await handler(event, data)
 
                 try:
                     subscriptions = await get_subscriptions_by_tg_id(user.id)
