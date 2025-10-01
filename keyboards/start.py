@@ -8,6 +8,8 @@ def menu(is_admin: bool) -> InlineKeyboardMarkup:
     if is_admin:
         builder.button(text="Адмiн-панель", callback_data="admin:menu")
 
+    builder.button(text="Курси", callback_data="course:menu_page_1")
+
     builder.button(text="Техпідтримка", callback_data="help:start")
 
     builder.adjust(1)

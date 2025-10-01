@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from utils.pagination import add_pagination_buttons
 from utils.schemas.lesson import LessonReadSchemaDB
 from utils.schemas.user import UserReadSchemaDB
 
@@ -38,7 +39,7 @@ def show_users(users: List[UserReadSchemaDB], page: int = 1, per_page: int = 10)
         builder.button(text=display_name, callback_data=f"admin:show_user_{user.user_id}")
 
     if total_pages > 1:
-        _add_pagination_buttons(builder, page, total_pages, "admin:show_users_page")
+        add_pagination_buttons(builder, page, total_pages, "admin:show_users_page")
 
     builder.button(text="В адмін-панель", callback_data="admin:back_to_menu")
 
@@ -100,7 +101,7 @@ def manage_courses_menu(modules: List[Dict[str, Any]], page: int = 1, per_page: 
         )
 
     if total_pages > 1:
-        _add_pagination_buttons(builder, page, total_pages, "admin:courses_page")
+        add_pagination_buttons(builder, page, total_pages, "admin:courses_page")
 
     builder.button(text="В адмін-панель", callback_data="admin:back_to_menu")
 
@@ -130,7 +131,7 @@ def manage_course_menu(module_number: int, lessons: List[LessonReadSchemaDB],
         )
 
     if total_pages > 1:
-        _add_pagination_buttons(builder, page, total_pages, f"admin:manage_course_page_{module_number}")
+        add_pagination_buttons(builder, page, total_pages, f"admin:manage_course_page_{module_number}")
 
     builder.button(text="До управління курсами", callback_data="admin:courses_page_1")
     builder.button(text="В адмін-панель", callback_data="admin:back_to_menu")
@@ -216,34 +217,6 @@ def back_to_lesson(module_id: int, lesson_id: int) -> InlineKeyboardMarkup:
     builder.adjust(1)
 
     return builder.as_markup()
-
-
-def _add_pagination_buttons(
-        builder: InlineKeyboardBuilder,
-        current_page: int, total_pages: int, callback_prefix: str
-) -> None:
-    pagination_buttons = []
-
-    if current_page > 1:
-        pagination_buttons.append({
-            "text": "⬅️ Назад",
-            "callback_data": f"{callback_prefix}_{current_page - 1}"
-        })
-
-    if current_page < total_pages:
-        pagination_buttons.append({
-            "text": "➡️ Вперед",
-            "callback_data": f"{callback_prefix}_{current_page + 1}"
-        })
-
-    for btn in pagination_buttons:
-        builder.button(text=btn["text"], callback_data=btn["callback_data"])
-
-    if len(pagination_buttons) > 0:
-        current_buttons = len(list(builder.buttons))
-
-        adjust_pattern = [1] * (current_buttons - len(pagination_buttons)) + [len(pagination_buttons)]
-        builder.adjust(*adjust_pattern)
 
 
 def _format_user_display_name(user_id: str, username: str | None = None) -> str:
