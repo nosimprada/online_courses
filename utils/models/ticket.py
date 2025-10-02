@@ -16,7 +16,6 @@ from utils.database import Base
 from utils.enums.ticket import TicketStatus
 
 
-# id, user_id, topic, text, attachments[], status, created_at, resolved_at
 class Ticket(Base):
     __tablename__ = "tickets"
 

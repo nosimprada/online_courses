@@ -3,6 +3,7 @@ from typing import Callable, Dict, Awaitable, Any
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, User, Message, CallbackQuery
 
+from config import ADMIN_CHAT_ID
 from utils.enums.subscription import SubscriptionStatus
 from utils.services.subscription import get_subscriptions_by_tg_id
 
