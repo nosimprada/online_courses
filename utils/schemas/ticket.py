@@ -24,4 +24,4 @@ class TicketReadSchemaDB(BaseModel):
     status: TicketStatus
 
     created_at: datetime
-    resolved_at: datetime
+    resolved_at: Optional[datetime]

@@ -58,7 +58,7 @@ async def show_user_orders(callback: CallbackQuery) -> None:
     orders = await get_orders_by_tg_id(user_id)
 
     if not orders:
-        await callback.message.edit_text(
+        await callback.message.answer(
             "Користувач не має замовлень.",
             reply_markup=admin_kb.back_to_admin_or_user(user_id)
         )
@@ -74,7 +74,7 @@ async def show_user_orders(callback: CallbackQuery) -> None:
         msg += f"⌚ <b>Створено:</b> <code>{_format_date(order.created_at)}</code>\n"
         msg += f"💸 <b>Сплачено:</b> <code>{_format_date(order.paid_at)}</code>\n\n"
 
-    await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin_or_user(user_id))
+    await callback.message.answer(msg, reply_markup=admin_kb.back_to_admin_or_user(user_id))
     await callback.answer()
 
 
@@ -84,7 +84,7 @@ async def show_user_subscriptions_page(callback: CallbackQuery) -> None:
 
     subscriptions = await get_subscriptions_by_tg_id(user_id)
     if not subscriptions:
-        await callback.message.edit_text(
+        await callback.message.answer(
             "Користувач не має доступів.",
             reply_markup=admin_kb.show_user_subscriptions(user_id, True)
         )
@@ -101,7 +101,7 @@ async def show_user_subscriptions_page(callback: CallbackQuery) -> None:
         msg += f"🔔 <b>Статус:</b> <code>{subscription.status}</code>\n"
         msg += f"⌚ <b>Створено:</b> <code>{_format_date(subscription.created_at)}</code>\n\n"
 
-    await callback.message.edit_text(msg, reply_markup=admin_kb.show_user_subscriptions(user_id, False))
+    await callback.message.answer(msg, reply_markup=admin_kb.show_user_subscriptions(user_id, False))
     await callback.answer()
 
 
@@ -111,7 +111,7 @@ async def show_user_data(callback: CallbackQuery) -> None:
 
     user = await get_user_by_tg_id(user_id)
     if not user:
-        await callback.message.edit_text("Користувач не знайдено.", reply_markup=admin_kb.back_to_admin())
+        await callback.message.answer("Користувач не знайдено.", reply_markup=admin_kb.back_to_admin())
         await callback.answer()
         return
 
@@ -127,13 +127,13 @@ async def show_user_data(callback: CallbackQuery) -> None:
 
     msg += f"\n📋 Оберіть категорію для перегляду:"
 
-    await callback.message.edit_text(msg, reply_markup=admin_kb.show_user_data(user_id))
+    await callback.message.answer(msg, reply_markup=admin_kb.show_user_data(user_id))
     await callback.answer()
 
 
 @router.callback_query(F.data == "admin:menu")
 async def menu(callback: CallbackQuery) -> None:
-    await callback.message.edit_text("Виберіть дію:", reply_markup=admin_kb.menu())
+    await callback.message.answer("Виберіть дію:", reply_markup=admin_kb.menu())
     await callback.answer()
 
 
@@ -143,7 +143,7 @@ async def show_users_page(callback: CallbackQuery) -> None:
 
     users = await get_all_users()
 
-    await callback.message.edit_text(
+    await callback.message.answer(
         f"Кількість користувачів: <code>{len(users)}</code>",
         reply_markup=admin_kb.show_users(users, page)
     )
@@ -155,7 +155,7 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
     active_subscriptions = await get_active_subscriptions()
 
     if not active_subscriptions:
-        await callback.message.edit_text("Немає активних доступів.", reply_markup=admin_kb.back_to_admin())
+        await callback.message.answer("Немає активних доступів.", reply_markup=admin_kb.back_to_admin())
         await callback.answer()
         return
 
@@ -168,7 +168,7 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
         msg += f"📅 <b>Кінець доступу:</b> <code>{_format_date(subscription.access_to)}</code>\n"
         msg += f"⏰ <b>Створено:</b> <code>{_format_date(subscription.created_at)}</code>\n\n"
 
-    await callback.message.edit_text(msg, reply_markup=admin_kb.back_to_admin())
+    await callback.message.answer(msg, reply_markup=admin_kb.back_to_admin())
     await callback.answer()
 
 
@@ -179,7 +179,7 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
 #     await state.set_state(SetUserEmailState.email)
 #     await state.update_data(user_id=user_id)
 #
-#     await callback.message.edit_text(
+#     await callback.message.answer(
 #         "Введіть нову електронну пошту користувача.\n"
 #         "Для скасування дії введіть «-»."
 #     )
@@ -224,7 +224,7 @@ async def handle_grant_access(callback: CallbackQuery, state: FSMContext) -> Non
     await state.set_state(GrantSubscriptionState.access_to)
     await state.update_data(user_id=user_id)
 
-    await callback.message.edit_text(
+    await callback.message.answer(
         "Введіть термін для надання доступу (у місяцях).\n"
         "Для скасування дії введіть «-»."
     )
@@ -299,11 +299,11 @@ async def open_all_accesses(callback: CallbackQuery) -> None:
     try:
         opened = await open_subscriptions_access(user_id)
         message_text, reply_markup = _are_subscriptions_updated(opened, "open", user_id)
-        await callback.message.edit_text(message_text, reply_markup=reply_markup)
+        await callback.message.answer(message_text, reply_markup=reply_markup)
 
     except Exception as e:
         print(f"Error opening access for user {user_id}: {str(e)}")
-        await callback.message.edit_text(
+        await callback.message.answer(
             f"❌ Сталася помилка при відкритті доступів користувача (ID {user_id}).",
             reply_markup=admin_kb.back_to_admin_or_user(user_id)
         )
@@ -318,11 +318,11 @@ async def close_all_accesses(callback: CallbackQuery) -> None:
     try:
         closed = await close_subscriptions_access(user_id)
         message_text, reply_markup = _are_subscriptions_updated(closed, "close", user_id)
-        await callback.message.edit_text(message_text, reply_markup=reply_markup)
+        await callback.message.answer(message_text, reply_markup=reply_markup)
 
     except Exception as e:
         print(f"Error closing access for user {user_id}: {str(e)}")
-        await callback.message.edit_text(
+        await callback.message.answer(
             f"❌ Сталася помилка при закритті доступів користувача (ID {user_id}).",
             reply_markup=admin_kb.back_to_admin_or_user(user_id)
         )
@@ -340,13 +340,13 @@ async def manage_courses_page(callback: CallbackQuery) -> None:
         modules = []
 
     if not modules:
-        await callback.message.edit_text(
+        await callback.message.answer(
             "Немає активних модулів.", reply_markup=admin_kb.manage_courses_menu(modules, page)
         )
         await callback.answer()
         return
 
-    await callback.message.edit_text(
+    await callback.message.answer(
         "Активні модулі:\n",
         reply_markup=admin_kb.manage_courses_menu(modules, page)
     )
@@ -363,11 +363,11 @@ async def manage_course_page(callback: CallbackQuery) -> None:
     lessons = await get_lessons_by_module(module_number)
 
     if not lessons:
-        await callback.message.edit_text("Немає модуля з цим номером.", reply_markup=admin_kb.back_to_admin())
+        await callback.message.answer("Немає модуля з цим номером.", reply_markup=admin_kb.back_to_admin())
         await callback.answer()
         return
 
-    await callback.message.edit_text(
+    await callback.message.answer(
         f"Активні уроки модуля №{module_number}:",
         reply_markup=admin_kb.manage_course_menu(module_number, lessons, page)
     )
@@ -384,7 +384,7 @@ async def add_module_lesson(callback: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(module_number=module_number, lesson_number=lesson_number)
     await state.set_state(CreateLessonState.title)
 
-    await callback.message.edit_text(
+    await callback.message.answer(
         "Введіть заголовок урока:\n"
         "Для скасування дії введіть «-»."
     )
@@ -440,7 +440,7 @@ async def manage_module_lesson(callback: CallbackQuery) -> None:
     lesson = await get_lesson_by_module_and_lesson_number(module_number, lesson_number)
 
     if not lesson:
-        await callback.message.edit_text(
+        await callback.message.answer(
             f"❌ Урок №{lesson_number} у модулі №{module_number} не знайдено.",
             reply_markup=admin_kb.back_to_module(module_number)
         )
@@ -461,7 +461,7 @@ async def manage_module_lesson(callback: CallbackQuery) -> None:
             reply_markup=admin_kb.manage_module_lesson_menu(module_number, lesson_number, lesson)
         )
     else:
-        await callback.message.edit_text(
+        await callback.message.answer(
             msg,
             reply_markup=admin_kb.manage_module_lesson_menu(module_number, lesson_number, lesson)
         )
@@ -476,7 +476,7 @@ async def show_lesson_video(callback: CallbackQuery) -> None:
     lesson = await get_lesson_by_module_and_lesson_number(module_number, lesson_number)
 
     if not lesson:
-        await callback.message.edit_text(
+        await callback.message.answer(
             f"❌ Урок №{lesson_number} у модулі №{module_number} не знайдено.",
             reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
         )
@@ -497,7 +497,7 @@ async def show_lesson_pdf(callback: CallbackQuery) -> None:
     lesson = await get_lesson_by_module_and_lesson_number(module_number, lesson_number)
 
     if not lesson:
-        await callback.message.edit_text(
+        await callback.message.answer(
             f"❌ Урок №{lesson_number} у модулі №{module_number} не знайдено.",
             reply_markup=admin_kb.back_to_lesson(module_number, lesson_number)
         )
@@ -518,7 +518,7 @@ async def update_lesson_title(callback: CallbackQuery, state: FSMContext) -> Non
     await state.update_data(module_number=module_number, lesson_number=lesson_number)
     await state.set_state(UpdateLessonTitle.title)
 
-    await callback.message.edit_text(
+    await callback.message.answer(
         "Введіть заголовок урока:\n"
         "Для скасування дії введіть «-»."
     )
@@ -631,7 +631,7 @@ async def cancel_update_lesson_pdf(message: Message, state: FSMContext) -> None:
 async def ask_delete_module_lesson(callback: CallbackQuery) -> None:
     module_number, lesson_number = _get_module_lesson_number(callback)
 
-    await callback.message.edit_text(
+    await callback.message.answer(
         f"Ви дійсно хочете видалити урок {lesson_number} модуля {module_number}?",
         reply_markup=admin_kb.delete_module_lesson(module_number, lesson_number)
     )
@@ -646,7 +646,7 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
         lesson = await get_lesson_by_module_and_lesson_number(module_number, lesson_number)
 
         if not lesson:
-            await callback.message.edit_text(
+            await callback.message.answer(
                 f"❌ Урок №{lesson_number} у модулі №{module_number} не знайдено.",
                 reply_markup=admin_kb.back_to_module(module_number)
             )
@@ -658,19 +658,19 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
         deleted = await get_lesson_by_id(lesson.id)
 
         if not deleted:
-            await callback.message.edit_text(
+            await callback.message.answer(
                 f"✅ Урок {lesson_number} модуля {module_number} успішно видалено.",
                 reply_markup=admin_kb.back_to_module(module_number)
             )
         else:
-            await callback.message.edit_text(
+            await callback.message.answer(
                 f"❌ Не вдалося видалити урок {lesson_number} модуля {module_number}. Спробуйте пізніше.",
                 reply_markup=admin_kb.back_to_module(module_number)
             )
 
     except Exception as e:
         print(f"Error deleting lesson {lesson_number} in module {module_number}: {str(e)}")
-        await callback.message.edit_text(
+        await callback.message.answer(
             f"❌ Сталася помилка під час видалення урока {lesson_number} модуля {module_number}. Спробуйте пізніше.",
             reply_markup=admin_kb.back_to_module(module_number)
         )
@@ -680,7 +680,7 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "admin:back_to_menu")
 async def handle_back_to_menu(callback: CallbackQuery) -> None:
-    await callback.message.edit_text("Виберіть дію:", reply_markup=admin_kb.menu())
+    await callback.message.answer("Виберіть дію:", reply_markup=admin_kb.menu())
     await callback.answer()
 
 

@@ -1,28 +1,27 @@
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-def choose_support_topic() -> InlineKeyboardMarkup:
+def choose_support_topic() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="💬 Тема повідомлення №1")],
+        [KeyboardButton(text="💬 Тема повідомлення №2")],
+        [KeyboardButton(text="💬 Тема повідомлення №3")]
+    ], resize_keyboard=True)
+
+
+def admin_choose_ticket_action(user_id: int, ticket_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    builder.button(text="Тема повідомлення №1", callback_data="help:support_topic_1")
-    builder.button(text="Тема повідомлення №2", callback_data="help:support_topic_2")
-    builder.button(text="Тема повідомлення №3", callback_data="help:support_topic_3")
-    builder.button(text="❌ Скасувати запит", callback_data="help:cancel")
+    builder.button(text="💬 Відповісти", callback_data=f"help:admin_respond_{ticket_id}_{user_id}")
+    builder.button(text="✅ Закрити тикет", callback_data=f"help:admin_close_{ticket_id}_{user_id}")
 
-    builder.adjust(2)
+    builder.adjust(1)
 
     return builder.as_markup()
 
 
-def choose_message_action_for_helpers(username: str | None = None) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-
-    if username:
-        builder.button(text="Відповісти", url=f"https://t.me/{username}")
-
-    builder.button(text="Закрити", callback_data="helper:close")
-
-    builder.adjust(2)
-
-    return builder.as_markup()
+def admin_back_to_tickets() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="📋 До списку тикетів")]
+    ], resize_keyboard=True)

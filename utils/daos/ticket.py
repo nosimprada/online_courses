@@ -1,3 +1,6 @@
+from datetime import datetime
+
+from pytz import timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +40,9 @@ class TicketDAO:
 
         if ticket:
             ticket.status = status
+
+            if status == TicketStatus.CLOSED:
+                ticket.resolved_at = datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None)
 
             await session.commit()
             await session.refresh(ticket)
