@@ -3,13 +3,12 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
+from utils.enums.subscription import SubscriptionStatus
+
 
 class SubscriptionCreateSchemaDB(BaseModel):
-    user_id: Optional[int] = None
     order_id: int
-    access_from: datetime
-    access_to: datetime
-    status: Optional[str] = None
+
 
 
 class SubscriptionReadSchemaDB(BaseModel):
@@ -18,7 +17,7 @@ class SubscriptionReadSchemaDB(BaseModel):
     id: int
     user_id: Optional[int] = None
     order_id: int
-    access_from: datetime
-    access_to: datetime
-    status: str
-    created_at: datetime
+    access_from: datetime | None
+    access_to: datetime | None
+    status: SubscriptionStatus
+    created_at: datetime | None

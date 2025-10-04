@@ -10,7 +10,9 @@ from utils.enums.subscription import SubscriptionStatus
 from utils.schemas.order import OrderCreateSchemaDB
 from utils.schemas.subscription import SubscriptionCreateSchemaDB
 from utils.services.order import create_invoice_order_token_code, get_order_by_order_id, update_order_status
-from utils.services.subscription import create_subscription
+from utils.services.redeem_token import get_redeem_token_by_order_id
+from utils.services.short_code import get_short_code_by_order_id
+from utils.services.subscription import create_subscription, get_subscription_by_order_id
 
 router = APIRouter()
 
@@ -103,25 +105,23 @@ async def payment_completed(request: Request):
             order = await get_order_by_order_id(order_id)
 
             if order:
-                await update_order_status(order_id, OrderStatus.COMPLETED.value)
+                await update_order_status(order_id, OrderStatus.COMPLETED)
+                subscription = await get_subscription_by_order_id(order.order_id)
+                if not subscription:
+                    await create_subscription(SubscriptionCreateSchemaDB(
+                        order_id=order.order_id,
+                    ))
 
-                now = datetime.now()
-
-                await create_subscription(SubscriptionCreateSchemaDB(
-                    user_id=order.user_id,
-                    order_id=order.id,
-                    access_from=now,
-                    access_to=now + timedelta(days=90),  # TODO: 3 месяца, если другое - подредактируй
-                    status=SubscriptionStatus.CREATED.value,
-                ))
-
-                token = None  # TODO: взять токен
-                access_code = None  # TODO: взять код доступа
+                redeem_token = await get_redeem_token_by_order_id(order_id)
+                token = redeem_token.token_hash
+                
+                short_code = await get_short_code_by_order_id(order_id)
+                code = short_code.code_hash
 
                 await send_email(
                     order.email,
                     "You've been registered",
-                    f"Token: {token} | Access code: {access_code}"
+                    f"Token: {token} | Access code: {code}"
                 )  # TODO: Возвращается True после успешной отправки, можешь обработать
 
             print(f"Обрабатываем успешную оплату для заказа {order_id}")
@@ -129,7 +129,8 @@ async def payment_completed(request: Request):
             return {
                 "status": "success",
                 "message": f"Payment completed notification processed for order {order_id}",
-                "order_id": order_id
+                "order_id": order_id,
+                "button_url": f"https://t.me/lagidna_disciplinabot?start={token}"  # Пример ссылки с токеном
             }
         else:
             return {

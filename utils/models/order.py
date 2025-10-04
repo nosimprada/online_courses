@@ -22,7 +22,7 @@ class Order(Base):
     order_id = Column(Integer, unique=True, nullable=True, index=True)
     invoice_id = Column(String, unique=True, nullable=True, index=True)
     user_id = Column(BigInteger, nullable=True, index=True)
-    email = Column(String, unique=True, nullable=True, index=True)
+    email = Column(String, nullable=True, index=True)
     amount = Column(Float, nullable=False)
     status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
     created_at = Column(

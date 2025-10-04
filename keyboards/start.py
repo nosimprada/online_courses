@@ -1,23 +1,16 @@
-from aiogram.types import InlineKeyboardMarkup
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Message
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
+async def start_menu_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
+    builder = ReplyKeyboardBuilder()
 
-def menu(is_admin: bool) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-
+    builder.button(text="Навчання 📚")
+    builder.button(text="Конспекти 📝")
+    builder.button(text="Продовити доступ 🔄")
+    builder.button(text="Help ❓")
     if is_admin:
-        builder.button(text="Адмiн-панель", callback_data="admin:menu")
+        builder.button(text="Адмін панель 🔧")
+    
+    builder.adjust(1)  
 
-    builder.button(text="Курси", callback_data="course:menu_page_1")
-
-    builder.button(text="Техпідтримка", callback_data="help:start")
-
-    builder.adjust(1)
-
-    return builder.as_markup()
-
-
-def back_to_menu() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.button(text="На головну", callback_data="back_to_menu")
-    return builder.as_markup()
+    return builder.as_markup(resize_keyboard=True)

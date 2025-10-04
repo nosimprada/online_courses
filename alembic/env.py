@@ -17,6 +17,7 @@ from utils.models.redeem_token import RedeemToken
 from utils.models.short_code import ShortCode
 from utils.models.subscription import Subscription
 from utils.models.lesson import Lesson
+from utils.models.learning_progress import LearningProgress
 from utils.models.ticket import Ticket
 
 # this is the Alembic Config object, which provides
