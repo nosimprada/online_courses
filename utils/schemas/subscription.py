@@ -10,7 +10,6 @@ class SubscriptionCreateSchemaDB(BaseModel):
     order_id: int
 
 
-
 class SubscriptionReadSchemaDB(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -43,7 +43,7 @@ class SubscriptionDAO:
             await session.refresh(subscription)
             return SubscriptionReadSchemaDB.model_validate(subscription)
         return None
-    
+
     @staticmethod
     async def update_access_period(session: AsyncSession, subscription_id: int, access_from: datetime,
                                    access_to: datetime) -> SubscriptionReadSchemaDB | None:
@@ -58,7 +58,7 @@ class SubscriptionDAO:
             await session.refresh(subscription)
             return SubscriptionReadSchemaDB.model_validate(subscription)
         return None
-    
+
     @staticmethod
     async def get_subscriptions_by_user_id(session: AsyncSession, user_id: int) -> List[SubscriptionReadSchemaDB]:
         result = await session.execute(

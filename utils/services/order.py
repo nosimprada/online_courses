@@ -43,6 +43,7 @@ async def update_user_id_by_order_id(order_id: int, user_id: int) -> OrderReadSc
     async with AsyncSessionLocal() as session:
         return await OrderDAO.update_user_id_by_order_id(session, order_id, user_id)
 
+
 # -------------------------------Кастомные сервисы-------------------------------
 
 # Создание заказа, токена, кода с сайта.
@@ -66,4 +67,3 @@ async def create_invoice_order_token_code(order_data: OrderCreateSchemaDB) -> Or
     short_code = await create_short_code(short_code_data)
     print(short_code)
     return order
-

@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InputMediaDocument, InputMediaVideo
 
-import keyboards.admin_archive as admin_kb
+import keyboards.admin as admin_kb
 from utils.enums.order import OrderStatus
 from utils.enums.subscription import SubscriptionStatus
 from utils.schemas.lesson import LessonCreateSchemaDB, LessonUpdateSchemaDB, LessonReadSchemaDB
@@ -18,15 +18,10 @@ from utils.services.lesson import get_all_modules_with_lesson_count, get_lessons
     get_lesson_by_module_and_lesson_number, delete_lesson, get_lesson_by_id
 from utils.services.lesson import update_lesson
 from utils.services.order import get_orders_by_tg_id, create_order
-from utils.services.subscription import get_subscriptions_by_tg_id, get_active_subscriptions, \
-    close_subscriptions_access, open_subscriptions_access, create_subscription
+from utils.services.subscription import create_subscription
 from utils.services.user import get_all_users, get_user_by_tg_id
 
 router = Router()
-
-
-# class SetUserEmailState(StatesGroup):
-#     email = State()
 
 
 class GrantSubscriptionState(StatesGroup):
@@ -170,51 +165,6 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
 
     await callback.message.answer(msg, reply_markup=admin_kb.back_to_admin())
     await callback.answer()
-
-
-# @router.callback_query(F.data.startswith("admin:set_user_email_"))
-# async def handle_set_user_email(callback: CallbackQuery, state: FSMContext) -> None:
-#     user_id = int(callback.data.split("_")[-1])
-#
-#     await state.set_state(SetUserEmailState.email)
-#     await state.update_data(user_id=user_id)
-#
-#     await callback.message.answer(
-#         "Введіть нову електронну пошту користувача.\n"
-#         "Для скасування дії введіть «-»."
-#     )
-#
-#     await callback.answer()
-#
-#
-# @router.message(F.text, StateFilter(SetUserEmailState.email))
-# async def input_set_user_email(message: Message, state: FSMContext) -> None:
-#     data = await state.get_data()
-#     user_id = data.get("user_id")
-#
-#     if message.text == "-":
-#         await state.clear()
-#         await message.answer("❌ Дія скасована.", reply_markup=admin_kb.back_to_admin_or_user(user_id))
-#         return
-#
-#     try:
-#         set_email = await set_user_email(user_id, message.text)
-#         if set_email and set_email.email == message.text:
-#             await message.answer(
-#                 "✅ Електронна пошта успішно змінена.",
-#                 reply_markup=admin_kb.back_to_admin_or_user(user_id)
-#             )
-#             await state.clear()
-#             return
-#
-#     except Exception as e:
-#         print(f"Error setting email for user {user_id}: {str(e)}")
-#
-#     await message.answer(
-#         "❌ Сталася помилка під час зміни електронної пошти. Спробуйте пізніше.",
-#         reply_markup=admin_kb.back_to_admin_or_user(user_id)
-#     )
-#     await state.clear()
 
 
 @router.callback_query(F.data.startswith("admin:grant_access_"))
