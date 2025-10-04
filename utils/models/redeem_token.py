@@ -17,7 +17,7 @@ class RedeemToken(Base):
     __tablename__ = "redeem_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    order_id = Column(Integer, ForeignKey("orders.order_id"), nullable=False, index=True)
     token_hash = Column(String, unique=True, nullable=False, index=True)
     created_at = Column(
         DateTime,

@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InputMediaDocument, InputMediaVideo
 
-import keyboards.admin as admin_kb
+import keyboards.admin_archive as admin_kb
 from utils.enums.order import OrderStatus
 from utils.enums.subscription import SubscriptionStatus
 from utils.schemas.lesson import LessonCreateSchemaDB, LessonUpdateSchemaDB, LessonReadSchemaDB

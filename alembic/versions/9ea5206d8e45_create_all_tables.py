@@ -1,18 +1,17 @@
 """create all tables
 
-Revision ID: f6d253ac66ca
+Revision ID: 9ea5206d8e45
 Revises: 
-Create Date: 2025-09-27 19:04:35.731868
+Create Date: 2025-10-01 20:36:37.531637
 
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'f6d253ac66ca'
+revision: str = '9ea5206d8e45'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -65,7 +64,7 @@ def upgrade() -> None:
     sa.Column('token_hash', sa.String(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('used_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
+                    sa.ForeignKeyConstraint(['order_id'], ['orders.order_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_redeem_tokens_id'), 'redeem_tokens', ['id'], unique=False)
@@ -77,7 +76,7 @@ def upgrade() -> None:
     sa.Column('code_hash', sa.String(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('used_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
+                    sa.ForeignKeyConstraint(['order_id'], ['orders.order_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_short_codes_code_hash'), 'short_codes', ['code_hash'], unique=True)
@@ -87,11 +86,12 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=True),
     sa.Column('order_id', sa.Integer(), nullable=False),
-    sa.Column('access_from', sa.DateTime(), nullable=False),
-    sa.Column('access_to', sa.DateTime(), nullable=False),
-    sa.Column('status', sa.Enum('CREATED', 'ACTIVE', 'EXPIRED', 'CANCELED', name='subscriptionstatus'), nullable=False),
+                    sa.Column('access_from', sa.DateTime(), nullable=True),
+                    sa.Column('access_to', sa.DateTime(), nullable=True),
+                    sa.Column('status', sa.Enum('CREATED', 'ACTIVE', 'EXPIRED', 'CANCELED', name='subscriptionstatus'),
+                              nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
+                    sa.ForeignKeyConstraint(['order_id'], ['orders.order_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_subscriptions_id'), 'subscriptions', ['id'], unique=False)

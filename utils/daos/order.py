@@ -68,3 +68,19 @@ class OrderDAO:
             return OrderReadSchemaDB.model_validate(order)
 
         return None
+
+    @staticmethod
+    async def update_user_id_by_order_id(session: AsyncSession, order_id: int,
+                                         user_id: int) -> OrderReadSchemaDB | None:
+        result = await session.execute(select(Order).where(Order.order_id == order_id))
+        order = result.scalars().first()
+
+        if order:
+            order.user_id = user_id
+
+            await session.commit()
+            await session.refresh(order)
+
+            return OrderReadSchemaDB.model_validate(order)
+
+        return None

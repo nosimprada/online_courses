@@ -1,29 +1,26 @@
-from aiogram import Router, F
-from aiogram.filters import StateFilter, CommandStart
-from aiogram.types import Message, CallbackQuery
+from aiogram import Router
+from aiogram.filters import CommandStart
+from aiogram.types import Message
 
-import keyboards.start as start_kb
-from config import ADMIN_CHAT_ID
-from utils.schemas.user import UserCreateSchemaDB
-from utils.services.user import create_user
+from outboxes.start import registration_func, start_menu
+from utils.services.user import get_user_by_tg_id
 
 router = Router()
 
 
-@router.message(CommandStart(), StateFilter(None))
-async def menu(message: Message) -> None:
-    is_admin = True if message.from_user.id == ADMIN_CHAT_ID else False
+@router.message(CommandStart())
+async def start_command_handler(message: Message):
+    command_args = message.text.split()[1:] if len(message.text.split()) > 1 else []
+    print(f"COMMAND ARGS====================================: {command_args}")
+    user_data = await get_user_by_tg_id(message.from_user.id)
+    if user_data is None:
+        if command_args:
+            ref_code = command_args[0]
+            print(f"РЕФЕРАЛЬНЫЙ КОД: {ref_code}")
+            print('Сработала регистрация')
+            await registration_func(message, ref_code)
 
-    # TEMP: Пользователь добавляется сразу, а не после подтверждения почтой или токеном
-    await create_user(UserCreateSchemaDB(
-        user_id=message.from_user.id,
-        username=message.from_user.username
-    ))
-
-    await message.answer(f"Hi, {message.from_user.first_name}!", reply_markup=start_kb.menu(is_admin))
-
-
-@router.callback_query(F.data == "back_to_menu")
-async def handle_back_to_menu(callback: CallbackQuery) -> None:
-    is_admin = True if callback.from_user.id == ADMIN_CHAT_ID else False
-    await callback.message.edit_text(f"Hi, {callback.from_user.first_name}!", reply_markup=start_kb.menu(is_admin))
+        else:
+            await message.answer("Welcome! Use the menu below to navigate.")
+    else:
+        await start_menu(message)

@@ -11,7 +11,8 @@ from fastapi import FastAPI, Request
 from api.routes import orders
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, SERVER_PORT
 from handlers import routers
-from middlewares.course import CourseMiddleware
+
+logging.basicConfig(level=logging.DEBUG)
 
 dp = Dispatcher()
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
@@ -58,8 +59,6 @@ async def main() -> None:
         allowed_updates=dp.resolve_used_update_types(),
         drop_pending_updates=True
     )
-
-    dp.update.middleware(CourseMiddleware())
 
     logging.info(f"Webhook set to {WEBHOOK_URL}.")
 

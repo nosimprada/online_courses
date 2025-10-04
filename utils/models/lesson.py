@@ -7,6 +7,7 @@ from sqlalchemy import (
     String,
     DateTime,
 )
+from sqlalchemy.orm import relationship
 
 from utils.database import Base
 
@@ -26,3 +27,6 @@ class Lesson(Base):
         default=lambda: datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None),
         nullable=False
     )
+
+    # Определение отношения к LearningProgress
+    learning_progress = relationship("LearningProgress", back_populates="lesson")

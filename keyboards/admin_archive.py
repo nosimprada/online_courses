@@ -4,8 +4,8 @@ from typing import List, Dict, Any
 
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-
 from utils.pagination import add_pagination_buttons
+
 from utils.schemas.lesson import LessonReadSchemaDB
 from utils.schemas.user import UserReadSchemaDB
 
