@@ -267,7 +267,7 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
         await message.answer(
             f"✅ Доступ успішно надано користувачу (TG {tg_id}) на {months} міс.\n"
             f"📅 Доступ до: {_format_date(access_to)}",
-            reply_markup=await admin_kb.show_user_subscriptions(tg_id, False)
+            reply_markup=await admin_kb.go_back(f"admin:show_user_subscriptions_{tg_id}")
         )
         await state.clear()
 
@@ -392,7 +392,7 @@ async def add_module_lesson_video_document(message: Message, state: FSMContext) 
 
         await state.update_data(video=doc.file_id)
         await message.answer("Надішліть PDF для курсу (якщо хочете залишити поле порожнім, надішліть «-»).")
-        
+
     except Exception as e:
         print(f"Error in add_module_lesson_video_document: {e}")
         await message.answer(

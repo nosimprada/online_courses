@@ -4,7 +4,7 @@ from typing import Callable, Tuple, List
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 _BACK_RULES: List[Tuple[str, Callable[[re.Match[str]], str]]] = [
-    # Users
+    # Admin: Users
     (r"^admin:show_users$", lambda m: "admin:back_to_menu"),
     (r"^admin:show_user_(\d+)$", lambda m: "admin:show_users"),
     (r"^admin:show_user_orders_(\d+)$", lambda m: f"admin:show_user_{m.group(1)}"),
@@ -13,7 +13,7 @@ _BACK_RULES: List[Tuple[str, Callable[[re.Match[str]], str]]] = [
     (r"^admin:open_all_accesses_(\d+)$", lambda m: f"admin:show_user_subscriptions_{m.group(1)}"),
     (r"^admin:close_all_accesses_(\d+)$", lambda m: f"admin:show_user_subscriptions_{m.group(1)}"),
 
-    # Courses
+    # Admin: Courses
     (r"^admin:courses$", lambda m: "admin:back_to_menu"),
     (r"^admin:courses_page_(\d+)$", lambda m: "admin:back_to_menu"),
     (r"^admin:manage_course_(\d+)$", lambda m: "admin:courses"),

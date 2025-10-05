@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery
 
 from config import ADMIN_CHAT_ID
 from keyboards.admin import menu as admin_menu_kb
+from keyboards.help import test
 from outboxes.start import registration_func, start_menu
 from utils.services.user import get_user_by_tg_id
 
@@ -36,6 +37,6 @@ async def start_command_handler(message: Message):
         await start_menu(message)
 
 
-@router.callback_query(F.data == "back_to_start")
+@router.message(F.text == "🔁 На головну")
 async def handle_back_to_start(callback: CallbackQuery) -> None:
-    await start_menu(callback.message)
+    await callback.message.answer("123", reply_markup=await test())

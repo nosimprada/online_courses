@@ -38,7 +38,6 @@ async def show_users(users: List[UserReadSchemaDB]) -> InlineKeyboardMarkup:
 async def show_user_data(user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    builder.button(text="Замовлення", callback_data=f"admin:show_user_orders_{user_id}")
     builder.button(text="Доступи", callback_data=f"admin:show_user_subscriptions_{user_id}")
 
     await add_auto_back_button(builder, f"admin:show_user_{user_id}")
@@ -143,7 +142,7 @@ async def go_back(callback: str) -> InlineKeyboardMarkup:
 
 def back_to_start() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
-    builder.button(text="На головну", callback_data="back_to_start")
+    builder.button(text="🔁 На головну")
 
     return builder.as_markup(resize_keyboard=True)
 

@@ -1,10 +1,10 @@
-from typing import Dict, Tuple
+from typing import Tuple
 
 from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
+from aiogram.types import CallbackQuery, Message
 
 import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
@@ -18,11 +18,6 @@ router = Router()
 class HelpStates(StatesGroup):
     topic = State()
     message = State()
-
-
-class ConversationStates(StatesGroup):
-    wait_admin_response = State()
-    active_conversation = State()
     admin_responding = State()
 
 
@@ -32,51 +27,34 @@ async def start_help_request(callback: CallbackQuery, state: FSMContext) -> None
 
     if active_ticket and active_ticket.status != TicketStatus.CLOSED:
         await callback.message.answer(
-            f"❌ У вас вже є активне звернення №{active_ticket.id}."
+            f"❌ У вас вже є активне звернення №{active_ticket.id}. "
             "Будь ласка, дочекайтеся відповіді служби підтримки.",
-            reply_markup=back_to_menu_kb()
+            reply_markup=help_kb.back_to_menu()
         )
         await callback.answer()
         return
 
-    await callback.message.answer("💬 Виберіть тему для звернення:", reply_markup=help_kb.choose_support_topic())
+    await callback.message.answer("💬 Напишіть тему для звернення:", reply_markup=help_kb.cancel())
     await state.set_state(HelpStates.topic)
+
     await callback.answer()
 
 
 @router.message(F.text, StateFilter(HelpStates.topic))
 async def choose_support_topic(message: Message, state: FSMContext) -> None:
-    topics_mapping: Dict[str, str] = {
-        "💬 Тема повідомлення №1": "Тема повідомлення №1",
-        "💬 Тема повідомлення №2": "Тема повідомлення №2",
-        "💬 Тема повідомлення №3": "Тема повідомлення №3"
-    }
-
-    if message.text not in topics_mapping:
-        await message.answer("❌ Будь ласка, виберіть тему з клавіатури нижче:")
-        return
-
-    topic_name = topics_mapping[message.text]
-    await state.update_data(selected_topic=topic_name)
+    await state.update_data(selected_topic=message.text)
 
     await message.answer(
-        f"✅ Выбрана тема {topic_name}.\n"
+        f"✅ Выбрана тема {message.text}.\n"
         "📝 Опишіть вашу проблему якомога детальніше.\n\n"
         "📷 Ви також можете прикріпити фото до повідомлення.\n"
-        "❌ Для скасування дії введіть «-».",
-        reply_markup=ReplyKeyboardRemove()
     )
     await state.set_state(HelpStates.message)
 
 
 @router.message(F.text, StateFilter(HelpStates.message))
 async def write_help_message_text(message: Message, state: FSMContext) -> None:
-    if message.text == "-":
-        await state.clear()
-        await message.answer("❌ Запит до технічної підтримки скасовано.", reply_markup=ReplyKeyboardRemove())
-        return
-
-    await _process_help_message(message, state, message_text=message.text)
+    await _process_help_message(message, state, message.text)
 
 
 @router.message(F.photo, StateFilter(HelpStates.message))
@@ -107,7 +85,7 @@ async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) ->
     await callback.answer()
 
 
-@router.message(F.text, StateFilter(ConversationStates.admin_responding))
+@router.message(F.text, StateFilter(HelpStates.admin_responding))
 async def admin_send_response(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
 
@@ -242,7 +220,16 @@ async def user_respond_to_ticket_with_photo(message: Message) -> None:
 
     except Exception as e:
         print(f"Error sending user response with photo to admin: {e}")
-        await message.answer("❌ Не вдалося відправити повідомлення адміністратору.", reply_markup=back_to_menu_kb())
+        await message.answer(
+            "❌ Не вдалося відправити повідомлення адміністратору.",
+            reply_markup=await help_kb.back_to_menu()
+        )
+
+
+@router.message(F.text == "❌ Скасувати звернення", StateFilter(HelpStates.topic, HelpStates.message))
+async def cancel_help_request(message: Message, state: FSMContext) -> None:
+    await message.answer("❌ Запит до технічної підтримки скасовано.", reply_markup=help_kb.back_to_menu())
+    await state.clear()
 
 
 async def _process_help_message(message: Message, state: FSMContext, message_text: str, photo=None) -> None:
