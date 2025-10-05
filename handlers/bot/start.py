@@ -2,6 +2,8 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 
+from config import ADMIN_CHAT_ID
+from keyboards.admin import menu as admin_menu_kb
 from outboxes.start import registration_func, start_menu
 from utils.services.user import get_user_by_tg_id
 
@@ -10,6 +12,10 @@ router = Router()
 
 @router.message(CommandStart())
 async def start_command_handler(message: Message):
+    if message.from_user.id == ADMIN_CHAT_ID:
+        await message.answer("Виберіть дію:", reply_markup=admin_menu_kb())
+        return
+
     command_args = message.text.split()[1:] if len(message.text.split()) > 1 else []
     print(f"COMMAND ARGS====================================: {command_args}")
 

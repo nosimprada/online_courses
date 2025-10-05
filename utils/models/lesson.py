@@ -7,7 +7,6 @@ from sqlalchemy import (
     String,
     DateTime,
 )
-from sqlalchemy.orm import relationship
 
 from utils.database import Base
 
@@ -29,4 +28,4 @@ class Lesson(Base):
     )
 
     # Определение отношения к LearningProgress
-    learning_progress = relationship("LearningProgress", back_populates="lesson")
+    # learning_progress = relationship("LearningProgress", back_populates="lesson")

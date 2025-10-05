@@ -8,7 +8,6 @@ from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
-from keyboards.start import back_to_menu as back_to_menu_kb
 from utils.enums.ticket import TicketStatus
 from utils.schemas.ticket import TicketCreateSchemaDB
 from utils.services.ticket import get_ticket_by_user_id, create_ticket, close_ticket

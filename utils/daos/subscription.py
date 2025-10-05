@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from typing import List, Sequence
 
 from sqlalchemy import select
@@ -92,3 +92,12 @@ class SubscriptionDAO:
             await session.refresh(subscription)
             return SubscriptionReadSchemaDB.model_validate(subscription)
         return None
+
+    @staticmethod
+    async def get_all_active(session: AsyncSession) -> List[SubscriptionReadSchemaDB]:
+        result = await session.execute(
+            select(Subscription).where(Subscription.status == SubscriptionStatus.ACTIVE)
+        )
+
+        subscriptions: Sequence[Subscription] = result.scalars().all()
+        return [SubscriptionReadSchemaDB.model_validate(sub) for sub in subscriptions]

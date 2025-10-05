@@ -43,3 +43,8 @@ async def update_subscription_user_id_by_subscription_id(subscription_id: int,
                                                          user_id: int) -> SubscriptionReadSchemaDB | None:
     async with AsyncSessionLocal() as session:
         return await SubscriptionDAO.update_subscription_user_id_by_subscription_id(session, subscription_id, user_id)
+
+
+async def get_all_active_subscriptions() -> List[SubscriptionReadSchemaDB]:
+    async with AsyncSessionLocal() as session:
+        return await SubscriptionDAO.get_all_active(session)

@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 from utils.enums.order import OrderStatus
 
+
 # class Order(Base):
 #     __tablename__ = "orders"
 
@@ -32,14 +33,14 @@ class OrderCreateSchemaDB(BaseModel):
 
 
 class OrderReadSchemaDB(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
-    order_id: int
-    invoice_id: str
+    order_id: Optional[int] = None
+    invoice_id: Optional[str] = None
     user_id: Optional[int] = None
     email: Optional[str] = None
     amount: float
     status: OrderStatus
     created_at: datetime
     paid_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
