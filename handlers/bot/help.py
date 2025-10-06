@@ -95,6 +95,11 @@ async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) ->
 
 @router.message(F.text, StateFilter(HelpStates.admin_responding))
 async def admin_send_response(message: Message, state: FSMContext) -> None:
+    # TODO: не работает отмена
+    if message.text == "❓ Тикетi":
+        await state.clear()
+        return
+
     data = await state.get_data()
 
     user_id = data.get("user_id")
@@ -121,11 +126,6 @@ async def admin_send_response(message: Message, state: FSMContext) -> None:
             reply_markup=await help_kb.admin_back_to_tickets()
         )
 
-    await state.clear()
-
-
-@router.message(F.text == "❓ Тикетi", StateFilter(HelpStates.admin_responding))
-async def cancel_admin_reply_and_open_admin_panel(state: FSMContext) -> None:
     await state.clear()
 
 
