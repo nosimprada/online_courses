@@ -200,6 +200,14 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
 
 # TODO: Tickets
 
+# ---------------------------- Tickets -------------------------
+
+
+@router.message(F.text == "❓ Тикети")
+async def show_tickets(message: Message) -> None:
+    await message.answer("TODO: show tickets")
+
+
 # ---------------------------- Menu ----------------------------
 
 @router.message(F.text == "Адмін панель 🔧", StateFilter(None))

@@ -11,6 +11,7 @@ class TicketCreateSchemaDB(BaseModel):
     topic: str
     text: str
     attachments: Optional[str] = None
+    status: TicketStatus = TicketStatus.PENDING
 
 
 class TicketReadSchemaDB(BaseModel):

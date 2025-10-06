@@ -29,6 +29,6 @@ async def admin_choose_ticket_action(user_id: int, ticket_id: int) -> InlineKeyb
 
 async def admin_back_to_tickets() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
-    builder.button(text="📋 До списку тикетів")
+    builder.button(text="❓ Тикетi")
 
     return builder.as_markup(resize_keyboard=True)

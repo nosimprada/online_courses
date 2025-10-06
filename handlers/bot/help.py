@@ -10,7 +10,7 @@ import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
 from utils.enums.ticket import TicketStatus
 from utils.schemas.ticket import TicketCreateSchemaDB
-from utils.services.ticket import get_ticket_by_user_id, create_ticket, close_ticket
+from utils.services.ticket import get_ticket_by_user_id, create_ticket, close_ticket, open_ticket
 
 router = Router()
 
@@ -77,6 +77,7 @@ async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) ->
             reply_markup=await help_kb.admin_back_to_tickets()
         )
         await state.clear()
+        await callback.answer()
         return
 
     await state.update_data(ticket_id=ticket_id, user_id=user_id)
@@ -105,6 +106,8 @@ async def admin_send_response(message: Message, state: FSMContext) -> None:
             f"💬 <b>Відповідь від підтримки по зверненню №{ticket_id}:</b>\n\n{message.text}"
         )
 
+        await open_ticket(ticket_id)
+
         await message.answer(
             f"✅ Відповідь по зверненню №{ticket_id} відправлена користувачу.\n"
             "Тепер ви можете продовжувати спілкування до закриття тикету.",
@@ -121,12 +124,18 @@ async def admin_send_response(message: Message, state: FSMContext) -> None:
     await state.clear()
 
 
+@router.message(F.text == "❓ Тикетi", StateFilter(HelpStates.admin_responding))
+async def cancel_admin_reply_and_open_admin_panel(state: FSMContext) -> None:
+    await state.clear()
+
+
 @router.callback_query(F.data.startswith("help:admin_close_"))
 async def admin_close_ticket(callback: CallbackQuery) -> None:
     ticket_id, user_id = _get_ntl_last_data(callback)
 
     try:
         await close_ticket(ticket_id)
+        # TODO: удаление тикета
 
         await callback.bot.send_message(
             user_id,
