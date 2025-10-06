@@ -25,7 +25,7 @@ from utils.services.order import create_order
 from utils.services.subscription import (
     create_subscription,
     get_subscriptions_by_user_id,
-    get_active_subscriptions_by_user_id,
+    get_all_active_subscriptions,
     update_subscription_status,
     update_subscription_access_period,
     update_subscription_user_id_by_subscription_id, )
@@ -34,14 +34,22 @@ from utils.services.user import get_all_users, get_user_by_tg_id, get_user_full_
 ERROR_MESSAGE: Final = "❌ Сталася помилка. Спробуйте пізніше."
 
 
-# async def menu(callback: CallbackQuery) -> None:
-#     try:
-#         users_with_ = await get_all_users()
-#
-#         msg = (
-#             f"Кількість користувачів з активними підписками: {len(users)}"
-#
-#         )
+async def menu(message: Message) -> None:
+    try:
+        users = await get_all_users()
+
+        active_subs = await get_all_active_subscriptions() or []
+        unique_user_ids = {s.user_id for s in active_subs if getattr(s, "user_id", None) is not None}
+
+        await message.answer(
+            f"👥 Кількість користувачів: <code>{len(users)}</code>"
+            f"🎟️ Кількість активних підписок: <code>{len(unique_user_ids)}</code>\n",
+            reply_markup=await admin_kb.menu()
+        )
+
+    except Exception as e:
+        print(f"Error showing admin menu: {str(e)}")
+        await message.answer(ERROR_MESSAGE, await admin_kb.back_to_start())
 
 
 # ============================ Users & Orders ============================
@@ -88,8 +96,6 @@ async def show_users(callback: CallbackQuery) -> None:
     except Exception as e:
         print(f"Error showing users list: {str(e)}")
         await callback.message.answer(ERROR_MESSAGE, reply_markup=go_back)
-
-    await callback.answer()
 
 
 async def show_user_data(callback: CallbackQuery) -> None:
@@ -182,7 +188,7 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
     go_back = await admin_kb.go_back(callback.data)
 
     try:
-        active_subscriptions = await _get_all_active_subscriptions()
+        active_subscriptions = await get_all_active_subscriptions()
         if not active_subscriptions:
             await callback.message.answer("Немає активних доступів.", reply_markup=go_back)
             await callback.answer()
@@ -312,21 +318,19 @@ async def close_all_accesses(callback: CallbackQuery) -> None:
 
 # ============================ Courses / Lessons ============================
 
-async def manage_courses_page(callback: CallbackQuery) -> None:
+async def manage_courses_page(message: Message) -> None:
     modules = await get_all_modules_with_lesson_count() or []
     if not modules:
-        await callback.message.answer(
+        await message.answer(
             "Немає активних модулів.",
             reply_markup=await admin_kb.manage_courses_menu(modules)
         )
-        await callback.answer()
         return
 
-    await callback.message.answer(
+    await message.answer(
         "Активні модулі:\n",
         reply_markup=await admin_kb.manage_courses_menu(modules)
     )
-    await callback.answer()
 
 
 async def manage_course_page(callback: CallbackQuery) -> None:
@@ -365,8 +369,10 @@ async def add_module_lesson_title(message: Message, state: FSMContext) -> None:
 
     if message.text == "-":
         await state.clear()
-        await message.answer("❌ Дія скасована.",
-                             reply_markup=await admin_kb.go_back(f"admin:manage_course_{module_number}"))
+        await message.answer(
+            "❌ Дія скасована.",
+            reply_markup=await admin_kb.go_back(f"admin:manage_course_{module_number}")
+        )
         return
 
     await state.update_data(title=message.text)
@@ -621,20 +627,13 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
 
 # ============================ Helpers (internal) ============================
 
+
 async def _get_subscriptions_by_tg_id(tg_id: int) -> List[SubscriptionReadSchemaDB]:
     user = await get_user_by_tg_id(tg_id)
     if not user:
         return []
+
     return await get_subscriptions_by_user_id(user.user_id)
-
-
-async def _get_all_active_subscriptions() -> List[SubscriptionReadSchemaDB]:
-    active: List[SubscriptionReadSchemaDB] = []
-    users = await get_all_users()
-    for u in users:
-        subs = await get_active_subscriptions_by_user_id(u.user_id)
-        active.extend(subs)
-    return active
 
 
 async def _open_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSchemaDB]:

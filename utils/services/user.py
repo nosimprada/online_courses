@@ -54,7 +54,7 @@ async def get_user_full_info_by_tg_id(tg_id: int) -> UserReadFullInfoSchemaDB | 
     if user_data is None:
         return None
 
-    orders = await get_orders_by_tg_id(tg_id)
+    orders = await get_orders_by_tg_id(tg_id) or []
 
     completed_order_ids: List[int] = [
         int(o.order_id)

@@ -5,7 +5,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, Message
 
-import keyboards.admin as admin_kb
 import outboxes.admin as outbox
 
 router = Router()
@@ -199,15 +198,10 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
     await outbox.delete_module_lesson(callback)
 
 
+# TODO: Tickets
+
 # ---------------------------- Menu ----------------------------
 
-@router.callback_query(F.data == "admin:menu")
-async def menu(callback: CallbackQuery) -> None:
-    await callback.message.answer("Виберіть дію:", reply_markup=admin_kb.menu())
-    await callback.answer()
-
-
-@router.callback_query(F.data == "admin:back_to_menu")
-async def handle_back_to_menu(callback: CallbackQuery) -> None:
-    await callback.message.answer("Виберіть дію:", reply_markup=admin_kb.menu())
-    await callback.answer()
+@router.message(F.text == "Адмін панель 🔧", StateFilter(None))
+async def menu(message: Message) -> None:
+    await outbox.menu(message)

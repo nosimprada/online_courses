@@ -16,13 +16,6 @@ async def back_to_menu() -> ReplyKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True)
 
 
-async def test() -> ReplyKeyboardMarkup:
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="123")
-
-    return builder.as_markup(resize_keyboard=True)
-
-
 async def admin_choose_ticket_action(user_id: int, ticket_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 

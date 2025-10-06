@@ -27,22 +27,13 @@ _BACK_RULES: List[Tuple[str, Callable[[re.Match[str]], str]]] = [
 ]
 
 
-async def add_auto_back_button(builder: InlineKeyboardBuilder, callback: str) -> None:
-    """
-    Использование:
-        builder = InlineKeyboardBuilder()
-        # ... кнопки ...
-
-        add_auto_back_button(builder, callback="callback_of_this_page")
-        return builder.as_markup()
-    """
-
+async def add_auto_back(builder: InlineKeyboardBuilder, callback: str) -> None:
     resolved = await _resolve_back_target(callback)
 
     if resolved:
         builder.button(text="↩️ Назад", callback_data=resolved)
     else:
-        builder.button(text="В адмiн-панель", callback_data="admin:back_to_menu")
+        builder.button(text="Адмін панель 🔧", callback_data="admin:back_to_menu")
 
 
 async def _resolve_back_target(callback: str) -> str | None:
