@@ -10,7 +10,7 @@ import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
 from utils.enums.ticket import TicketStatus
 from utils.schemas.ticket import TicketCreateSchemaDB
-from utils.services.ticket import get_ticket_by_user_id, create_ticket, close_ticket, open_ticket, delete_ticket
+from utils.services.ticket import get_ticket_by_user_id, create_ticket, close_ticket, open_ticket
 
 router = Router()
 
@@ -25,7 +25,7 @@ class HelpStates(StatesGroup):
 async def start_help_request(message: Message, state: FSMContext) -> None:
     ticket = await get_ticket_by_user_id(message.from_user.id)
 
-    if ticket.status != TicketStatus.CLOSED:
+    if ticket and ticket.status != TicketStatus.CLOSED:
         await message.answer(
             f"❌ У вас вже є активне звернення №{ticket.id}. "
             "Будь ласка, дочекайтеся відповіді служби підтримки.",
@@ -141,7 +141,6 @@ async def admin_close_ticket(callback: CallbackQuery) -> None:
 
     try:
         await close_ticket(ticket_id)
-        await delete_ticket(ticket_id)
 
         await callback.bot.send_message(
             user_id,
@@ -170,7 +169,7 @@ async def user_respond_to_ticket(message: Message) -> None:
     try:
         ticket = await get_ticket_by_user_id(message.from_user.id)
 
-        if ticket is None or ticket is not None and ticket.status == TicketStatus.CLOSED:
+        if not ticket or ticket.status == TicketStatus.CLOSED:
             return
 
         if ticket.status != TicketStatus.OPEN:
@@ -208,7 +207,7 @@ async def user_respond_to_ticket_with_photo(message: Message) -> None:
     try:
         ticket = await get_ticket_by_user_id(message.from_user.id)
 
-        if ticket is None or ticket is not None and ticket.status == TicketStatus.CLOSED:
+        if not ticket or ticket.status == TicketStatus.CLOSED:
             return
 
         if ticket.status != TicketStatus.OPEN:

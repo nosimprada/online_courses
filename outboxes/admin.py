@@ -640,7 +640,7 @@ async def tickets_menu(message: Message) -> None:
             f"✅ <b>Кількість відкритих тикетів:</b> <code>{len(open_tickets)}</code>\n"
             f"⏳ <b>Кількість тикетiв, що очікують на відповідь:</b> <code>{len(pending_tickets)}</code>\n"
             f"❌ <b>Кількість закритих тикетiв:</b> <code>{len(closed_tickets)}</code>",
-            reply_markup=admin_kb.tickets_menu(sorted_tickets)
+            reply_markup=await admin_kb.tickets_menu(sorted_tickets)
         )
 
     except Exception as e:
