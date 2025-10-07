@@ -10,7 +10,7 @@ import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
 from utils.enums.ticket import TicketStatus
 from utils.schemas.ticket import TicketCreateSchemaDB
-from utils.services.ticket import get_ticket_by_user_id, create_ticket, close_ticket, open_ticket
+from utils.services.ticket import get_ticket_by_user_id, create_ticket, close_ticket, open_ticket, delete_ticket
 
 router = Router()
 
@@ -23,11 +23,11 @@ class HelpStates(StatesGroup):
 
 @router.message(F.text == "Help ❓", StateFilter(None))
 async def start_help_request(message: Message, state: FSMContext) -> None:
-    active_ticket = await get_ticket_by_user_id(message.from_user.id)
+    ticket = await get_ticket_by_user_id(message.from_user.id)
 
-    if active_ticket and active_ticket.status != TicketStatus.CLOSED:
+    if ticket.status != TicketStatus.CLOSED:
         await message.answer(
-            f"❌ У вас вже є активне звернення №{active_ticket.id}. "
+            f"❌ У вас вже є активне звернення №{ticket.id}. "
             "Будь ласка, дочекайтеся відповіді служби підтримки.",
             reply_markup=await help_kb.back_to_menu()
         )
@@ -40,6 +40,11 @@ async def start_help_request(message: Message, state: FSMContext) -> None:
 @router.message(F.text == "❌ Скасувати звернення", StateFilter(HelpStates.topic, HelpStates.message))
 async def cancel_help_request(message: Message, state: FSMContext) -> None:
     await message.answer("❌ Запит до технічної підтримки скасовано.", reply_markup=await help_kb.back_to_menu())
+    await state.clear()
+
+
+@router.message(F.text == "❓ Тикетi", StateFilter(HelpStates.admin_responding))
+async def cancel_admin_response(message: Message, state: FSMContext) -> None:
     await state.clear()
 
 
@@ -71,7 +76,8 @@ async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) ->
     ticket_id, user_id = _get_ntl_last_data(callback)
 
     ticket = await get_ticket_by_user_id(user_id)
-    if ticket.status == TicketStatus.CLOSED:
+
+    if ticket.status is None:
         await callback.message.answer(
             "❌ Звернення вже закрито.",
             reply_markup=await help_kb.admin_back_to_tickets()
@@ -84,7 +90,7 @@ async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) ->
 
     await callback.message.answer(
         f"💬 Ви відповідаєте на звернення №{ticket_id} користувачеві {user_id}.\n"
-        "❌ Для скасування відправлення відповіді натисніть кнопку переходу до квитків.\n\n"
+        "❌ Для скасування відправлення відповіді натисніть кнопку переходу до тикетiв.\n\n"
         "📝 Введіть вашу відповідь:",
         reply_markup=await help_kb.admin_back_to_tickets()
     )
@@ -135,7 +141,7 @@ async def admin_close_ticket(callback: CallbackQuery) -> None:
 
     try:
         await close_ticket(ticket_id)
-        # TODO: удаление тикета
+        await delete_ticket(ticket_id)
 
         await callback.bot.send_message(
             user_id,
@@ -164,7 +170,7 @@ async def user_respond_to_ticket(message: Message) -> None:
     try:
         ticket = await get_ticket_by_user_id(message.from_user.id)
 
-        if not ticket or ticket.status == TicketStatus.CLOSED:
+        if ticket is None or ticket is not None and ticket.status == TicketStatus.CLOSED:
             return
 
         if ticket.status != TicketStatus.OPEN:
@@ -202,7 +208,7 @@ async def user_respond_to_ticket_with_photo(message: Message) -> None:
     try:
         ticket = await get_ticket_by_user_id(message.from_user.id)
 
-        if not ticket or ticket.status == TicketStatus.CLOSED:
+        if ticket is None or ticket is not None and ticket.status == TicketStatus.CLOSED:
             return
 
         if ticket.status != TicketStatus.OPEN:

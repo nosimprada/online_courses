@@ -5,7 +5,9 @@ from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardMarkup, ReplyKeyboardBuilder
 
 from utils.auto_back import add_auto_back
+from utils.enums.ticket import TicketStatus
 from utils.schemas.lesson import LessonReadSchemaDB
+from utils.schemas.ticket import TicketReadSchemaDB
 from utils.schemas.user import UserReadSchemaDB
 
 
@@ -129,6 +131,23 @@ async def delete_module_lesson(module_number: int, lesson_number: int) -> Inline
 
     builder.button(text="✅ Видалити урок", callback_data=f"admin:delete_lesson_{module_number}_{lesson_number}")
     await add_auto_back(builder, f"admin:ask_delete_lesson_{module_number}_{lesson_number}")
+
+    builder.adjust(1)
+
+    return builder.as_markup()
+
+
+async def tickets_menu(tickets: List[TicketReadSchemaDB]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    for ticket in tickets:
+        status_emoji: Dict[TicketStatus, str] = {
+            TicketStatus.OPEN: "✅",
+            TicketStatus.PENDING: "⏳",
+            TicketStatus.CLOSED: "❌"
+        }.get(ticket.status, "❓")
+
+        builder.button(text=f"{status_emoji} {ticket.id}", callback_data=f"admin:ticket_{ticket.id}")
 
     builder.adjust(1)
 

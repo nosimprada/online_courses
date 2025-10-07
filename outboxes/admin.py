@@ -29,6 +29,7 @@ from utils.services.subscription import (
     update_subscription_status,
     update_subscription_access_period,
     update_subscription_user_id_by_subscription_id, )
+from utils.services.ticket import get_pending_tickets, get_open_tickets, get_closed_tickets
 from utils.services.user import get_all_users, get_user_by_tg_id, get_user_full_info_by_tg_id
 
 ERROR_MESSAGE: Final = "❌ Сталася помилка. Спробуйте пізніше."
@@ -42,8 +43,8 @@ async def menu(message: Message) -> None:
         unique_user_ids = {s.user_id for s in active_subs if getattr(s, "user_id", None) is not None}
 
         await message.answer(
-            f"👥 Кількість користувачів: <code>{len(users)}</code>"
-            f"🎟️ Кількість активних підписок: <code>{len(unique_user_ids)}</code>\n",
+            f"👥 Кількість користувачів: <code>{len(users)}</code>\n"
+            f"🎟️ Кількість активних підписок: <code>{len(unique_user_ids)}</code>",
             reply_markup=await admin_kb.menu()
         )
 
@@ -623,6 +624,28 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
         )
 
     await callback.answer()
+
+
+# ============================ Tickets ============================
+
+async def tickets_menu(message: Message) -> None:
+    try:
+        open_tickets = await get_open_tickets() or []
+        pending_tickets = await get_pending_tickets() or []
+        closed_tickets = await get_closed_tickets()
+
+        sorted_tickets = open_tickets + pending_tickets + closed_tickets
+
+        await message.answer(
+            f"✅ <b>Кількість відкритих тикетів:</b> <code>{len(open_tickets)}</code>\n"
+            f"⏳ <b>Кількість тикетiв, що очікують на відповідь:</b> <code>{len(pending_tickets)}</code>\n"
+            f"❌ <b>Кількість закритих тикетiв:</b> <code>{len(closed_tickets)}</code>",
+            reply_markup=admin_kb.tickets_menu(sorted_tickets)
+        )
+
+    except Exception as e:
+        print(f"Error showing tickets menu for admin: {str(e)}")
+        await message.answer(ERROR_MESSAGE)
 
 
 # ============================ Helpers (internal) ============================
