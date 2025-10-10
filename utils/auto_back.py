@@ -14,16 +14,23 @@ _BACK_RULES: List[Tuple[str, Callable[[re.Match[str]], str]]] = [
     (r"^admin:close_all_accesses_(\d+)$", lambda m: f"admin:show_user_subscriptions_{m.group(1)}"),
 
     # Admin: Courses
-    (r"^admin:courses$", lambda m: "admin:back_to_menu"),
-    (r"^admin:courses_page_(\d+)$", lambda m: "admin:back_to_menu"),
-    (r"^admin:manage_course_(\d+)$", lambda m: "admin:courses"),
+    (r"^admin:manage_course_(\d+)$", lambda m: f"admin:back_to_menu"),
     (r"^admin:manage_module_lesson_(\d+)_(\d+)$", lambda m: f"admin:manage_course_{m.group(1)}"),
     (r"^admin:ask_delete_lesson_(\d+)_(\d+)$", lambda m: f"admin:manage_module_lesson_{m.group(1)}_{m.group(2)}"),
     (r"^admin:show_video_(\d+)_(\d+)$", lambda m: f"admin:manage_module_lesson_{m.group(1)}_{m.group(2)}"),
     (r"^admin:show_pdf_(\d+)_(\d+)$", lambda m: f"admin:manage_module_lesson_{m.group(1)}_{m.group(2)}"),
 
-    # Other
+    # Admin: Tickets
+    (r"^help:R_admin_tickets_menu$", lambda m: f"admin:back_to_menu"),
+    (r"^help:admin_respond_(\d+)_(\d+)$", lambda m: f"admin:ticket_{m.group(1)}"),
+    (r"^help:admin_close_(\d+)_(\d+)$", lambda m: f"admin:ticket_{m.group(1)}"),
+
+    # Admin: Other
     (r"^admin:show_active_accesses$", lambda m: "admin:back_to_menu"),
+
+    # User: Courses
+    (r"^course:module_lesson_(\d+)_(\d+)$", lambda m: f"course:module_{m.group(1)}"),
+    (r"^course:show_pdf_(\d+)_(\d+)$", lambda m: f"course:module_lesson_{m.group(1)}_{m.group(2)}"),
 ]
 
 
@@ -33,7 +40,7 @@ async def add_auto_back(builder: InlineKeyboardBuilder, callback: str) -> None:
     if resolved:
         builder.button(text="↩️ Назад", callback_data=resolved)
     else:
-        builder.button(text="Адмін панель 🔧", callback_data="admin:back_to_menu")
+        builder.button(text="🔁 На головну", callback_data="back_to_menu")
 
 
 async def _resolve_back_target(callback: str) -> str | None:

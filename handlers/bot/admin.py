@@ -41,9 +41,9 @@ async def show_user_subscriptions(callback: CallbackQuery) -> None:
     await outbox.show_user_subscriptions(callback)
 
 
-@router.callback_query(F.data == "admin:show_users")
-async def show_users(callback: CallbackQuery) -> None:
-    await outbox.show_users(callback)
+@router.message(F.text == "👥 Користувачі")
+async def show_users(message: Message) -> None:
+    await outbox.show_users(message)
 
 
 @router.callback_query(F.data.startswith("admin:show_user_"))
@@ -86,14 +86,14 @@ async def close_all_accesses(callback: CallbackQuery) -> None:
 
 # ---------------------------- Courses / Lessons ----------------------------
 
-@router.callback_query(F.data == "admin:courses")
-async def manage_courses(callback: CallbackQuery) -> None:
-    await outbox.manage_courses_page(callback)
+@router.message(F.text == "📖 Управління курсами")
+async def manage_courses(message: Message) -> None:
+    await outbox.manage_courses(message)
 
 
 @router.callback_query(F.data.startswith("admin:manage_course_"))
-async def manage_course_page(callback: CallbackQuery) -> None:
-    await outbox.manage_course_page(callback)
+async def manage_course(callback: CallbackQuery) -> None:
+    await outbox.manage_course(callback)
 
 
 @router.callback_query(F.data.startswith("admin:add_module_lesson_"))
@@ -198,18 +198,26 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
     await outbox.delete_module_lesson(callback)
 
 
-# TODO: Tickets
-
 # ---------------------------- Tickets -------------------------
 
 
-@router.message(F.text == "❓ Тикети")
+@router.message(F.text == "❓ Тикетi")
 async def show_tickets(message: Message) -> None:
-    await message.answer("TODO: show tickets")
+    await outbox.tickets_menu(message)
+
+
+@router.callback_query(F.data.startswith("admin:ticket_"))
+async def show_ticket(callback: CallbackQuery) -> None:
+    await outbox.ticket_menu(callback)
 
 
 # ---------------------------- Menu ----------------------------
 
 @router.message(F.text == "Адмін панель 🔧", StateFilter(None))
-async def menu(message: Message) -> None:
+async def show_menu_message(message: Message) -> None:
     await outbox.menu(message)
+
+
+@router.callback_query(F.data == "admin:back_to_menu", StateFilter(None))
+async def show_menu_callback(callback: CallbackQuery) -> None:
+    await outbox.menu(callback.message)

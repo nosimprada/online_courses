@@ -11,7 +11,12 @@ async def create_ticket(data: TicketCreateSchemaDB) -> TicketReadSchemaDB:
         return await TicketDAO.create(session, data)
 
 
-async def get_ticket_by_user_id(user_id: int) -> TicketReadSchemaDB | None:
+async def get_ticket_by_id(ticket_id: int) -> TicketReadSchemaDB | None:
+    async with AsyncSessionLocal() as session:
+        return await TicketDAO.get_by_id(session, ticket_id)
+
+
+async def get_tickets_by_user_id(user_id: int) -> List[TicketReadSchemaDB]:
     async with AsyncSessionLocal() as session:
         return await TicketDAO.get_by_user_id(session, user_id)
 

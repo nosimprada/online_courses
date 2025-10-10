@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Tuple
 
 from utils.daos.lesson import LessonDAO
 from utils.database import AsyncSessionLocal
@@ -30,7 +30,7 @@ async def get_all_lessons() -> List[LessonReadSchemaDB]:
         return await LessonDAO.get_all(session)
 
 
-async def get_all_modules_with_lesson_count() -> List[Dict[str, Any]]:
+async def get_all_modules_with_lesson_count() -> List[Tuple[int, int]]:
     async with AsyncSessionLocal() as session:
         return await LessonDAO.get_modules_with_lesson_count(session)
 

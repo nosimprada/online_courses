@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Tuple
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,21 +93,13 @@ class LessonDAO:
     """
 
     @staticmethod
-    async def get_modules_with_lesson_count(session: AsyncSession) -> List[Dict[str, Any]]:
+    async def get_modules_with_lesson_count(session: AsyncSession) -> List[Tuple[int, int]]:
         result = await session.execute(
             select(Lesson.module_no, func.count(Lesson.id).label("lesson_count"))
             .group_by(Lesson.module_no).order_by(Lesson.module_no)
         )
 
-        modules_data = result.all()
-
-        return [
-            {
-                "module_number": row.module_no,
-                "lesson_count": row.lesson_count
-            }
-            for row in modules_data
-        ]
+        return [(row.module_no, row.lesson_count) for row in result.all()]
 
     @staticmethod
     async def get_lessons_by_module(session: AsyncSession, module_number: int) -> List[LessonReadSchemaDB]:

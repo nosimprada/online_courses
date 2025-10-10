@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 from config import ADMIN_CHAT_ID
 from outboxes.admin import menu as admin_menu
@@ -32,10 +32,18 @@ async def start_command_handler(message: Message):
         else:
             await message.answer("Welcome! Use the menu below to navigate.")
 
+            await registration_func(message)
+            print('Сработала регистрация')
+
     else:
         await start_menu(message)
 
 
 @router.message(F.text == "🔁 На головну")
-async def handle_back_to_start(message: Message) -> None:
+async def handle_back_to_menu_message(message: Message) -> None:
     await start_menu(message)
+
+
+@router.callback_query(F.data == "back_to_menu")
+async def handle_back_to_menu_callback(callback: CallbackQuery) -> None:
+    await start_menu(callback)

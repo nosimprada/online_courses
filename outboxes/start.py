@@ -1,13 +1,13 @@
 from datetime import datetime, timedelta
 
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from pytz import timezone
 
 from config import ADMIN_CHAT_ID
 from keyboards.start import start_menu_keyboard
 from utils.enums.order import OrderStatus
 from utils.enums.subscription import SubscriptionStatus
-from utils.schemas.user import UserCreateSchemaDB
+from utils.schemas.user import UserCreateSchemaDB, UserReadFullInfoSchemaDB
 from utils.services.order import get_order_by_order_id, update_user_id_by_order_id
 from utils.services.redeem_token import get_redeem_token_by_token_hash
 from utils.services.subscription import (
@@ -18,13 +18,23 @@ from utils.services.subscription import (
 from utils.services.user import create_user, get_user_by_tg_id, get_user_full_info_by_tg_id
 
 
-async def start_menu(message: Message):
-    full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
-    print(f"FULL USER INFO: {full_user_info}")
+async def start_menu(message: Message | CallbackQuery):
+    full_user_info: UserReadFullInfoSchemaDB = None
+
+    if isinstance(message, Message):
+        full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
+        print(f"FULL USER INFO: {full_user_info}")
+    elif isinstance(message, CallbackQuery):
+        full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
+        print(f"FULL USER INFO: {full_user_info}")
 
     if not full_user_info:
-        await message.answer("Error retrieving user information.")
-        return
+        if isinstance(message, Message):
+            await message.answer("Error retrieving user information.")
+            return
+        elif isinstance(message, CallbackQuery):
+            await message.message.answer("Error retrieving user information.")
+            return
 
     is_admin = False
     if message.from_user.id == ADMIN_CHAT_ID:
@@ -38,7 +48,10 @@ async def start_menu(message: Message):
 Дата закінчення підписки: {_format_date(full_user_info.subscription_access_to)}
 """
 
-    await message.answer(msg_text, reply_markup=await start_menu_keyboard(is_admin))
+    if isinstance(message, Message):
+        await message.answer(msg_text, reply_markup=await start_menu_keyboard(is_admin))
+    elif isinstance(message, CallbackQuery):
+        await message.message.answer(msg_text, reply_markup=await start_menu_keyboard(is_admin))
 
 
 async def registration_func(message: Message, ref_code: str | None = None):

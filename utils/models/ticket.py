@@ -24,7 +24,7 @@ class Ticket(Base):
     topic = Column(String, nullable=False)
     text = Column(String, nullable=False)
     attachments = Column(String, nullable=True)
-    status = Column(Enum(TicketStatus), nullable=False, default=TicketStatus.OPEN)
+    status = Column(Enum(TicketStatus), nullable=False, default=TicketStatus.PENDING)
 
     created_at = Column(
         DateTime,

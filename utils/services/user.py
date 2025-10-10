@@ -51,7 +51,7 @@ async def get_all_users() -> List[UserReadSchemaDB]:
 
 async def get_user_full_info_by_tg_id(tg_id: int) -> UserReadFullInfoSchemaDB | None:
     user_data = await get_user_by_tg_id(tg_id)
-    if user_data is None:
+    if not user_data:
         return None
 
     orders = await get_orders_by_tg_id(tg_id) or []
@@ -65,7 +65,7 @@ async def get_user_full_info_by_tg_id(tg_id: int) -> UserReadFullInfoSchemaDB | 
     internal_user_id = getattr(user_data, "id", None)
     subs_user_id = internal_user_id if internal_user_id is not None else user_data.user_id
 
-    subscriptions = await get_subscriptions_by_user_id(subs_user_id)
+    subscriptions = await get_subscriptions_by_user_id(subs_user_id) or []
 
     active_subscriptions = [s for s in subscriptions if s.status == SubscriptionStatus.ACTIVE]
     expired_subscription_ids = [s.id for s in subscriptions if s.status == SubscriptionStatus.EXPIRED]

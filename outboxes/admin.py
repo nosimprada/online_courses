@@ -5,10 +5,12 @@ from uuid import uuid4
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup
+from aiogram.utils.media_group import MediaGroupBuilder
 
 import keyboards.admin as admin_kb
 from utils.enums.order import OrderStatus
 from utils.enums.subscription import SubscriptionStatus
+from utils.enums.ticket import TicketStatus
 from utils.schemas.lesson import LessonCreateSchemaDB, LessonUpdateSchemaDB, LessonReadSchemaDB
 from utils.schemas.order import OrderCreateSchemaDB
 from utils.schemas.subscription import SubscriptionReadSchemaDB, SubscriptionCreateSchemaDB
@@ -29,7 +31,7 @@ from utils.services.subscription import (
     update_subscription_status,
     update_subscription_access_period,
     update_subscription_user_id_by_subscription_id, )
-from utils.services.ticket import get_pending_tickets, get_open_tickets, get_closed_tickets
+from utils.services.ticket import get_pending_tickets, get_open_tickets, get_closed_tickets, get_ticket_by_id
 from utils.services.user import get_all_users, get_user_by_tg_id, get_user_full_info_by_tg_id
 
 ERROR_MESSAGE: Final = "❌ Сталася помилка. Спробуйте пізніше."
@@ -84,19 +86,19 @@ async def menu(message: Message) -> None:
 #     await callback.answer()
 
 
-async def show_users(callback: CallbackQuery) -> None:
-    go_back = await admin_kb.go_back(callback.data)
+async def show_users(message: Message) -> None:
+    # go_back = await admin_kb.go_back(callback.data)
 
     try:
         users = await get_all_users()
-        await callback.message.answer(
+        await message.answer(
             f"Кількість користувачів: <code>{len(users)}</code>",
             reply_markup=await admin_kb.show_users(users)
         )
 
     except Exception as e:
         print(f"Error showing users list: {str(e)}")
-        await callback.message.answer(ERROR_MESSAGE, reply_markup=go_back)
+        await message.answer(ERROR_MESSAGE)
 
 
 async def show_user_data(callback: CallbackQuery) -> None:
@@ -319,22 +321,23 @@ async def close_all_accesses(callback: CallbackQuery) -> None:
 
 # ============================ Courses / Lessons ============================
 
-async def manage_courses_page(message: Message) -> None:
+async def manage_courses(message: Message) -> None:
     modules = await get_all_modules_with_lesson_count() or []
+
     if not modules:
         await message.answer(
-            "Немає активних модулів.",
+            "❌ Немає активних модулів.",
             reply_markup=await admin_kb.manage_courses_menu(modules)
         )
         return
 
     await message.answer(
-        "Активні модулі:\n",
+        "📚 Активні модулі:\n",
         reply_markup=await admin_kb.manage_courses_menu(modules)
     )
 
 
-async def manage_course_page(callback: CallbackQuery) -> None:
+async def manage_course(callback: CallbackQuery) -> None:
     module_number = int(callback.data.split("_")[-1])
     lessons = await get_lessons_by_module(module_number)
 
@@ -648,6 +651,61 @@ async def tickets_menu(message: Message) -> None:
         await message.answer(ERROR_MESSAGE)
 
 
+async def ticket_menu(callback: CallbackQuery) -> None:
+    try:
+        ticket_id = int(callback.data.split("_")[-1])
+        ticket = await get_ticket_by_id(ticket_id)
+
+        status: str = {
+            TicketStatus.OPEN: "✅ Відкрито",
+            TicketStatus.PENDING: "⏳ Очікування відповіді від адміністратора",
+            TicketStatus.CLOSED: "❌ Закрито"
+        }.get(ticket.status, "❓ Невідомо")
+
+        resolved = f"\n✅ Дата рішення: {_format_date(ticket.resolved_at)}" if ticket.resolved_at else ""
+
+        status_emoji, status_text = status.split(" ", 1)
+
+        msg = (
+            f"❓ <b>ID тiкета:</b> <code>{ticket.id}</code>\n"
+            f"👤 <b>ID користувача:</b> <code>{ticket.user_id}</code>\n\n"
+            f"💬 <b>Тема звернення:</b> <code>{ticket.topic}</code>\n"
+            f"💬 <b>Текст звернення:</b> {ticket.text}\n"
+            f"{status_emoji} <b>Статус:</b> {status_text}"
+            f"{resolved}"
+        )
+
+        if ticket.attachments:
+            file_ids = ticket.attachments.split(",")
+
+            media = MediaGroupBuilder()
+
+            for idx, file_id in enumerate(file_ids):
+                if idx == 0:
+                    media.add_photo(media=file_id, caption=msg)
+
+                media.add_photo(media=file_id)
+
+            await callback.message.answer_media_group(media.build())
+
+            if ticket.status != TicketStatus.CLOSED:
+                await callback.message.answer(
+                    f"🔧 Виберіть дію до звернення №{ticket.id}:",
+                    reply_markup=await admin_kb.ticket_menu(ticket.id, ticket.user_id)
+                )
+        else:
+            if ticket.status != TicketStatus.CLOSED:
+                await callback.message.answer(msg, reply_markup=await admin_kb.ticket_menu(ticket.id, ticket.user_id))
+            else:
+                await callback.message.answer(msg)
+
+    except Exception as e:
+        print(f"Error showing ticket menu for admin: {str(e)}")
+        await callback.message.answer(ERROR_MESSAGE)
+
+    await callback.answer()
+
+
 # ============================ Helpers (internal) ============================
 
 
@@ -717,8 +775,10 @@ async def _are_subscriptions_updated(subscriptions: List[SubscriptionReadSchemaD
 
 async def _process_create_module_lesson(message: Message, state: FSMContext, pdf_file_id: Optional[str]) -> None:
     data = await state.get_data()
+
     module_number = data.get("module_number")
     lesson_number = data.get("lesson_number")
+
     title = data.get("title")
     video_file_id = data.get("video")
 

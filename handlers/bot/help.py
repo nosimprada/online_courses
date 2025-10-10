@@ -1,16 +1,18 @@
-from typing import Tuple
+from typing import Tuple, List, Optional
 
 from aiogram import Router, F
+from aiogram.filters import Filter
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, InputMediaPhoto
 
 import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
+from outboxes.admin import tickets_menu as admin_tickets_menu
 from utils.enums.ticket import TicketStatus
-from utils.schemas.ticket import TicketCreateSchemaDB
-from utils.services.ticket import get_ticket_by_user_id, create_ticket, close_ticket, open_ticket
+from utils.schemas.ticket import TicketCreateSchemaDB, TicketReadSchemaDB
+from utils.services.ticket import get_tickets_by_user_id, create_ticket, close_ticket, open_ticket, get_ticket_by_id
 
 router = Router()
 
@@ -21,17 +23,30 @@ class HelpStates(StatesGroup):
     admin_responding = State()
 
 
-@router.message(F.text == "Help ❓", StateFilter(None))
-async def start_help_request(message: Message, state: FSMContext) -> None:
-    ticket = await get_ticket_by_user_id(message.from_user.id)
+class HasOpenTicket(Filter):
+    async def __call__(self, message: Message) -> bool:
+        tickets = await get_tickets_by_user_id(message.from_user.id)
+        ticket = await _find_open_ticket(tickets)
 
-    if ticket and ticket.status != TicketStatus.CLOSED:
-        await message.answer(
-            f"❌ У вас вже є активне звернення №{ticket.id}. "
-            "Будь ласка, дочекайтеся відповіді служби підтримки.",
-            reply_markup=await help_kb.back_to_menu()
-        )
-        return
+        if ticket:
+            message.ticket = ticket
+            return True
+
+        return False
+
+
+@router.message(F.text == "Help ❓")
+async def start_help_request(message: Message, state: FSMContext) -> None:
+    tickets = await get_tickets_by_user_id(message.from_user.id)
+
+    for ticket in tickets:
+        if ticket.status != TicketStatus.CLOSED:
+            await message.answer(
+                f"❌ У вас вже є активне звернення №{ticket.id}. "
+                "Будь ласка, дочекайтеся відповіді служби підтримки.",
+                reply_markup=await help_kb.back_to_menu()
+            )
+            return
 
     await message.answer("💬 Напишіть тему для звернення:", reply_markup=await help_kb.cancel())
     await state.set_state(HelpStates.topic)
@@ -40,11 +55,6 @@ async def start_help_request(message: Message, state: FSMContext) -> None:
 @router.message(F.text == "❌ Скасувати звернення", StateFilter(HelpStates.topic, HelpStates.message))
 async def cancel_help_request(message: Message, state: FSMContext) -> None:
     await message.answer("❌ Запит до технічної підтримки скасовано.", reply_markup=await help_kb.back_to_menu())
-    await state.clear()
-
-
-@router.message(F.text == "❓ Тикетi", StateFilter(HelpStates.admin_responding))
-async def cancel_admin_response(message: Message, state: FSMContext) -> None:
     await state.clear()
 
 
@@ -68,25 +78,24 @@ async def write_help_message_text(message: Message, state: FSMContext) -> None:
 @router.message(F.photo, StateFilter(HelpStates.message))
 async def write_help_message_photo(message: Message, state: FSMContext) -> None:
     caption = message.caption if message.caption else "Без опису"
-    await _process_help_message(message, state, message_text=caption, photo=message.photo[-1].file_id)
+    await _process_help_message(message, state, message_text=caption, photos=message.photo)
 
 
 @router.callback_query(F.data.startswith("help:admin_respond_"))
 async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) -> None:
     ticket_id, user_id = _get_ntl_last_data(callback)
 
-    ticket = await get_ticket_by_user_id(user_id)
+    ticket = await get_ticket_by_id(ticket_id)
 
-    if ticket.status is None:
+    if ticket.status == TicketStatus.CLOSED:
         await callback.message.answer(
             "❌ Звернення вже закрито.",
             reply_markup=await help_kb.admin_back_to_tickets()
         )
-        await state.clear()
         await callback.answer()
         return
 
-    await state.update_data(ticket_id=ticket_id, user_id=user_id)
+    await state.update_data(ticket_id=ticket.id, user_id=user_id)
 
     await callback.message.answer(
         f"💬 Ви відповідаєте на звернення №{ticket_id} користувачеві {user_id}.\n"
@@ -101,9 +110,9 @@ async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) ->
 
 @router.message(F.text, StateFilter(HelpStates.admin_responding))
 async def admin_send_response(message: Message, state: FSMContext) -> None:
-    # TODO: не работает отмена
     if message.text == "❓ Тикетi":
         await state.clear()
+        await admin_tickets_menu(message)
         return
 
     data = await state.get_data()
@@ -164,21 +173,10 @@ async def admin_close_ticket(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.message(F.text)
+@router.message(HasOpenTicket())
 async def user_respond_to_ticket(message: Message) -> None:
     try:
-        ticket = await get_ticket_by_user_id(message.from_user.id)
-
-        if not ticket or ticket.status == TicketStatus.CLOSED:
-            return
-
-        if ticket.status != TicketStatus.OPEN:
-            await message.answer(
-                "⏳ Ваше звернення ще не розглянуто адміністратором.\n"
-                "Будь ласка, дочекайтеся першої відповіді.",
-                reply_markup=await help_kb.back_to_menu()
-            )
-            return
+        ticket = message.ticket
 
         user = message.from_user
         username = f"@{user.username}" if user.username else "Без Username"
@@ -202,21 +200,10 @@ async def user_respond_to_ticket(message: Message) -> None:
         await message.answer("❌ Не вдалося відправити повідомлення адміністратору.")
 
 
-@router.message(F.photo)
+@router.message(HasOpenTicket(), F.photo)
 async def user_respond_to_ticket_with_photo(message: Message) -> None:
     try:
-        ticket = await get_ticket_by_user_id(message.from_user.id)
-
-        if not ticket or ticket.status == TicketStatus.CLOSED:
-            return
-
-        if ticket.status != TicketStatus.OPEN:
-            await message.answer(
-                "⏳ Ваше звернення ще не розглянуто адміністратором.\n"
-                "Будь ласка, дочекайтеся першої відповіді.",
-                reply_markup=await help_kb.back_to_menu()
-            )
-            return
+        ticket = message.ticket
 
         user = message.from_user
         username = f"@{user.username}" if user.username else "Без Username"
@@ -250,18 +237,25 @@ async def user_respond_to_ticket_with_photo(message: Message) -> None:
         )
 
 
-async def _process_help_message(message: Message, state: FSMContext, message_text: str, photo=None) -> None:
+async def _find_open_ticket(tickets: List[TicketReadSchemaDB]) -> Optional[TicketReadSchemaDB]:
+    return next((t for t in tickets if t.status == TicketStatus.OPEN), None)
+
+
+async def _process_help_message(message: Message, state: FSMContext, message_text: str, photos=None) -> None:
     data = await state.get_data()
     selected_topic = data.get("selected_topic")
 
     user = message.from_user
     username = f"@{user.username}" if user.username else "Без Username"
 
+    attachment_files = [photo.file_id for photo in photos] if photos else []
+    attachments = ",".join(attachment_files) if attachment_files else None
+
     ticket = await create_ticket(TicketCreateSchemaDB(
         user_id=user.id,
         topic=selected_topic,
         text=message_text,
-        attachments=photo
+        attachments=attachments
     ))
 
     support_message = (
@@ -271,17 +265,30 @@ async def _process_help_message(message: Message, state: FSMContext, message_tex
         f"💬 <b>Повідомлення:</b>\n{message_text}"
     )
 
-    if photo:
+    if photos:
         support_message += "\n\n📷 <b>Прикріплено фото.</b>"
 
     try:
-        if photo:
-            await message.bot.send_photo(
+        if photos:
+            media_group: List[InputMediaPhoto] = []
+
+            for idx, photo in enumerate(photos):
+                if idx == 0:
+                    media_group.append(InputMediaPhoto(media=photo.file_id, caption=support_message))
+                else:
+                    media_group.append(InputMediaPhoto(media=photo.file_id))
+
+            await message.bot.send_media_group(
                 chat_id=ADMIN_CHAT_ID,
-                photo=photo,
-                caption=support_message,
+                media=media_group
+            )
+
+            await message.bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text="🔧 Оберіть дію:",
                 reply_markup=await help_kb.admin_choose_ticket_action(user.id, ticket.id)
             )
+
         else:
             await message.bot.send_message(
                 chat_id=ADMIN_CHAT_ID,

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Tuple
 
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardMarkup, ReplyKeyboardBuilder
@@ -32,7 +32,7 @@ async def show_users(users: List[UserReadSchemaDB]) -> InlineKeyboardMarkup:
         display_name = _format_user_display_name(user.user_id, user.username)
         builder.button(text=display_name, callback_data=f"admin:show_user_{user.user_id}")
 
-    await add_auto_back(builder, "admin:show_users")
+    # await add_auto_back(builder, "admin:show_users")
 
     builder.adjust(1)
 
@@ -67,18 +67,17 @@ async def show_user_subscriptions(user_id: int, is_null: bool) -> InlineKeyboard
     return builder.as_markup()
 
 
-async def manage_courses_menu(modules: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
+async def manage_courses_menu(modules: List[Tuple[int, int]]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    builder.button(text="📑 Додати урок до нового модуля", callback_data=f"admin:add_module_lesson_{len(modules) + 1}")
+    next_module_number = max((module_no for module_no, _ in modules), default=0) + 1
+    builder.button(text="📑 Додати урок до нового модуля", callback_data=f"admin:add_module_lesson_{next_module_number}")
 
-    for module in modules:
+    for module_number, lesson_count in modules:
         builder.button(
-            text=f"📚 Модуль №{module["module_number"]} ({module["lesson_count"]} ур.)",
-            callback_data=f"admin:manage_course_{module["module_number"]}"
+            text=f"📚 Модуль №{module_number} ({lesson_count} ур.)",
+            callback_data=f"admin:manage_course_{module_number}"
         )
-
-    await add_auto_back(builder, f"admin:courses")
 
     builder.adjust(1)
 
@@ -95,8 +94,6 @@ async def manage_course_menu(module_number: int, lessons: List[LessonReadSchemaD
             text=f"📖 {lesson.title} №{lesson.lesson_number}",
             callback_data=f"admin:manage_module_lesson_{module_number}_{lesson.lesson_number}"
         )
-
-    await add_auto_back(builder, f"admin:manage_course_{module_number}")
 
     builder.adjust(1)
 
@@ -141,13 +138,26 @@ async def tickets_menu(tickets: List[TicketReadSchemaDB]) -> InlineKeyboardMarku
     builder = InlineKeyboardBuilder()
 
     for ticket in tickets:
-        status_emoji: Dict[TicketStatus, str] = {
+        status_emoji: str = {
             TicketStatus.OPEN: "✅",
             TicketStatus.PENDING: "⏳",
             TicketStatus.CLOSED: "❌"
         }.get(ticket.status, "❓")
 
-        builder.button(text=f"{status_emoji} {ticket.id}", callback_data=f"admin:ticket_{ticket.id}")
+        builder.button(text=f"{status_emoji} | ID: {ticket.id}", callback_data=f"admin:ticket_{ticket.id}")
+
+    await add_auto_back(builder, "help:R_admin_tickets_menu")
+
+    builder.adjust(1)
+
+    return builder.as_markup()
+
+
+async def ticket_menu(ticket_id: int, user_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    builder.button(text="💬 Відповісти", callback_data=f"help:admin_respond_{ticket_id}_{user_id}")
+    builder.button(text="❌ Закрити тикет", callback_data=f"help:admin_close_{ticket_id}_{user_id}")
 
     builder.adjust(1)
 
@@ -166,6 +176,19 @@ async def back_to_start() -> ReplyKeyboardMarkup:
     builder.button(text="🔁 На головну")
 
     return builder.as_markup(resize_keyboard=True)
+
+
+def _find_next_available_module_number(modules: List[LessonReadSchemaDB]) -> int:
+    if not modules:
+        return 1
+
+    module_numbers = sorted([module.module_number for module in modules])
+
+    for i, module_number in enumerate(module_numbers, start=1):
+        if module_number != i:
+            return i
+
+    return max(module_numbers) + 1
 
 
 def _format_user_display_name(user_id: str, username: str | None = None) -> str:

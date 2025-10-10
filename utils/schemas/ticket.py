@@ -21,8 +21,8 @@ class TicketReadSchemaDB(BaseModel):
     user_id: int
     topic: str
     text: str
-    attachments: Optional[str]
+    attachments: Optional[str] = None
     status: TicketStatus
 
     created_at: datetime
-    resolved_at: Optional[datetime]
+    resolved_at: Optional[datetime] = None

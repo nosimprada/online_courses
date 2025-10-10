@@ -28,11 +28,21 @@ class TicketDAO:
         return TicketReadSchemaDB.model_validate(ticket)
 
     @staticmethod
-    async def get_by_user_id(session: AsyncSession, user_id: int) -> TicketReadSchemaDB | None:
-        result = await session.execute(select(Ticket).where(Ticket.user_id == user_id))
-        ticket = result.scalars().all()
+    async def get_by_id(session: AsyncSession, ticket_id: int) -> TicketReadSchemaDB | None:
+        result = await session.execute(select(Ticket).where(Ticket.id == ticket_id))
+        ticket = result.scalars().first()
 
-        return TicketReadSchemaDB.model_validate(ticket) if ticket else None
+        if ticket:
+            return TicketReadSchemaDB.model_validate(ticket)
+
+        return None
+
+    @staticmethod
+    async def get_by_user_id(session: AsyncSession, user_id: int) -> List[TicketReadSchemaDB]:
+        result = await session.execute(select(Ticket).where(Ticket.user_id == user_id))
+        tickets = result.scalars().all()
+
+        return [TicketReadSchemaDB.model_validate(ticket) for ticket in tickets]
 
     @staticmethod
     async def get_open(session: AsyncSession) -> List[TicketReadSchemaDB]:
