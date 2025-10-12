@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardMarkup, ReplyKeyboardBuilder
@@ -25,12 +25,15 @@ async def menu() -> ReplyKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True)
 
 
-async def show_users(users: List[UserReadSchemaDB]) -> InlineKeyboardMarkup:
+async def show_users(users_with_status: List[Dict[UserReadSchemaDB, str]]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    for user in users:
-        display_name = _format_user_display_name(user.user_id, user.username)
-        builder.button(text=display_name, callback_data=f"admin:show_user_{user.user_id}")
+    for item in users_with_status:
+        user = item["user"]
+        emoji = item["emoji"]
+
+        display_name = _format_user_display_name(user.tg_id, user.username)
+        builder.button(text=f"{emoji} {display_name}", callback_data=f"admin:show_user_{user.tg_id}")
 
     # await add_auto_back(builder, "admin:show_users")
 
@@ -145,8 +148,6 @@ async def tickets_menu(tickets: List[TicketReadSchemaDB]) -> InlineKeyboardMarku
         }.get(ticket.status, "❓")
 
         builder.button(text=f"{status_emoji} | ID: {ticket.id}", callback_data=f"admin:ticket_{ticket.id}")
-
-    await add_auto_back(builder, "help:R_admin_tickets_menu")
 
     builder.adjust(1)
 

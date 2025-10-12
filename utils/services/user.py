@@ -83,8 +83,8 @@ async def get_user_full_info_by_tg_id(tg_id: int) -> UserReadFullInfoSchemaDB | 
             emails.append(o.email)
 
     return UserReadFullInfoSchemaDB(
-        tg_id=tg_id,
-        user_id=user_data.user_id,
+        id=internal_user_id,
+        tg_id=user_data.tg_id,
         username=getattr(user_data, "username", None),
         created_at=getattr(user_data, "created_at", None),
         is_subscribed=is_subscribed,

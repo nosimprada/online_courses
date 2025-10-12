@@ -60,7 +60,7 @@ async def registration_func(message: Message, ref_code: str | None = None):
 
     if not user_data:
         user_create_data = UserCreateSchemaDB(
-            user_id=message.from_user.id,
+            tg_id=message.from_user.id,
             username=message.from_user.username if message.from_user.username else "",
         )
 

@@ -1,6 +1,5 @@
-import time
 from datetime import datetime, timedelta
-from typing import Final, List, Tuple, Optional
+from typing import Final, List, Tuple, Optional, Set, Dict
 from uuid import uuid4
 
 from aiogram.fsm.context import FSMContext
@@ -14,6 +13,7 @@ from utils.enums.ticket import TicketStatus
 from utils.schemas.lesson import LessonCreateSchemaDB, LessonUpdateSchemaDB, LessonReadSchemaDB
 from utils.schemas.order import OrderCreateSchemaDB
 from utils.schemas.subscription import SubscriptionReadSchemaDB, SubscriptionCreateSchemaDB
+from utils.schemas.user import UserReadSchemaDB
 from utils.services.lesson import (
     get_all_modules_with_lesson_count,
     get_lessons_by_module,
@@ -30,23 +30,41 @@ from utils.services.subscription import (
     get_all_active_subscriptions,
     update_subscription_status,
     update_subscription_access_period,
-    update_subscription_user_id_by_subscription_id, )
+    update_subscription_user_id_by_subscription_id, get_all_created_subscriptions, get_all_expired_subscriptions,
+    get_all_canceled_subscriptions, )
 from utils.services.ticket import get_pending_tickets, get_open_tickets, get_closed_tickets, get_ticket_by_id
 from utils.services.user import get_all_users, get_user_by_tg_id, get_user_full_info_by_tg_id
 
 ERROR_MESSAGE: Final = "❌ Сталася помилка. Спробуйте пізніше."
 
+STATUS_EMOJI = {
+    "ACTIVE": "✅",
+    "CREATED": "⏳",
+    "EXPIRED": "⛔",
+    "CANCELED": "❌",
+    "NONE": "⚪",
+}
+
 
 async def menu(message: Message) -> None:
+    def unique_user_ids(subs: List[SubscriptionReadSchemaDB]) -> Set[int]:
+        return {s.user_id for s in subs if getattr(s, "user_id", None) is not None}
+
     try:
         users = await get_all_users()
 
         active_subs = await get_all_active_subscriptions() or []
-        unique_user_ids = {s.user_id for s in active_subs if getattr(s, "user_id", None) is not None}
+        created_subs = await get_all_created_subscriptions() or []
+
+        expired_subs = await get_all_expired_subscriptions() or []
+        canceled_subs = await get_all_canceled_subscriptions() or []
 
         await message.answer(
-            f"👥 Кількість користувачів: <code>{len(users)}</code>\n"
-            f"🎟️ Кількість активних підписок: <code>{len(unique_user_ids)}</code>",
+            f"👥 Кількість користувачів: <code>{len(users)}</code>\n\n"
+            f"✅ Кількість активних підписок: <code>{len(unique_user_ids(active_subs))}</code>\n"
+            f"⏳ Кількість неактивованих підписок: <code>{len(unique_user_ids(created_subs))}</code>\n"
+            f"⛔ Кількість закінчених підписок: <code>{len(unique_user_ids(expired_subs))}</code>\n"
+            f"❌ Кількість скасованих підписок: <code>{len(unique_user_ids(canceled_subs))}</code>\n",
             reply_markup=await admin_kb.menu()
         )
 
@@ -91,9 +109,29 @@ async def show_users(message: Message) -> None:
 
     try:
         users = await get_all_users()
+
+        users_with_status: List[Dict[UserReadSchemaDB, str]] = []
+
+        for user in users:
+            subs = await _get_subscriptions_by_tg_id(user.tg_id)
+
+            users_with_status.append({
+                "user": user,
+                "emoji": STATUS_EMOJI[await _get_subscription_status(subs)]
+            })
+
+        emojis_info = (
+            "✅ — Користувач має активну підписку.\n"
+            "⏳ — Користувач має неактивовану підписку\n"
+            "⛔ — Користувач має закінчену підписку\n"
+            "❌ — Користувач має скасовану підписку.\n"
+            "⚪ — Користувач не має підписок.\n\n"
+        )
+
         await message.answer(
-            f"Кількість користувачів: <code>{len(users)}</code>",
-            reply_markup=await admin_kb.show_users(users)
+            "🔧 Управління користувачами\n\n"
+            f"<tg-spoiler>{emojis_info}</tg-spoiler>",
+            reply_markup=await admin_kb.show_users(users_with_status)
         )
 
     except Exception as e:
@@ -107,7 +145,10 @@ async def show_user_data(callback: CallbackQuery) -> None:
 
         user = await get_user_full_info_by_tg_id(tg_id)
         if not user:
-            await callback.message.answer("Користувач не знайдено.", reply_markup=await admin_kb.go_back(callback.data))
+            await callback.message.answer(
+                "❌ Користувач не знайдено.",
+                reply_markup=await admin_kb.go_back(callback.data)
+            )
             await callback.answer()
             return
 
@@ -138,8 +179,8 @@ async def show_user_data(callback: CallbackQuery) -> None:
             f"📈 <b>Прогрес навчання:</b> {progress_text}\n"
             f"✉️ <b>Emails:</b> {emails_text}\n"
             f"✅ <b>Завершені замовлення (IDs):</b> {completed_orders_text}\n"
-            f"⌛ <b>Протерміновані підписки (IDs):</b> {expired_subs_text}\n"
-            f"\n📋 Оберіть категорію для перегляду:"
+            f"⌛ <b>Протерміновані підписки (IDs):</b> {expired_subs_text}\n\n"
+            f"📋 Оберіть категорію для перегляду:"
         )
 
         await callback.message.answer(msg, reply_markup=await admin_kb.show_user_data(tg_id))
@@ -160,13 +201,13 @@ async def show_user_subscriptions(callback: CallbackQuery) -> None:
         subscriptions = await _get_subscriptions_by_tg_id(tg_id)
         if not subscriptions:
             await callback.message.answer(
-                "Користувач не має доступів.",
+                "❌ Користувач не має доступів.",
                 reply_markup=await admin_kb.show_user_subscriptions(tg_id, True)
             )
             await callback.answer()
             return
 
-        msg = f"\n<i>Доступи користувача (TG {tg_id}):</i>\n\n"
+        msg = f"\n<i>🎟️ Доступи користувача (TG {tg_id}):</i>\n\n"
         for subscription in subscriptions:
             msg += f"🎟️ <b>ID:</b> <code>{subscription.id}</code>\n"
             msg += f"📦 <b>ID замовлення:</b> <code>{subscription.order_id}</code>\n"
@@ -193,11 +234,11 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
     try:
         active_subscriptions = await get_all_active_subscriptions()
         if not active_subscriptions:
-            await callback.message.answer("Немає активних доступів.", reply_markup=go_back)
+            await callback.message.answer("❌ Немає активних доступів.", reply_markup=go_back)
             await callback.answer()
             return
 
-        msg = "\n<i>Активні доступи користувачів:</i>\n\n"
+        msg = "\n<i>🎟️ Активні доступи користувачів:</i>\n\n"
 
         for subscription in active_subscriptions:
             if subscription.user_id:
@@ -217,8 +258,8 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
 
 async def handle_grant_access_prompt(callback: CallbackQuery) -> None:
     await callback.message.answer(
-        "Введіть термін для надання доступу (у місяцях).\n"
-        "Для скасування дії введіть «-»."
+        "📝 Введіть термін для надання доступу (у місяцях).\n"
+        "❌ Для скасування дії введіть «-»."
     )
     await callback.answer()
 
@@ -249,7 +290,7 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
         return
 
     try:
-        manual_order_id = int(time.time())
+        manual_order_id = uuid4().int >> 96  # 32-битный кусок UUID
         manual_invoice_id = f"MANUAL-{uuid4().hex[:12].upper()}"
 
         order = await create_order(OrderCreateSchemaDB(
@@ -269,9 +310,8 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
         access_from = datetime.now()
         access_to = access_from + timedelta(days=months * 30)
 
-        await update_subscription_user_id_by_subscription_id(subscription.id, user.user_id)
+        await update_subscription_user_id_by_subscription_id(subscription.id, user.tg_id)
         await update_subscription_access_period(subscription.id, access_from, access_to)
-        await update_subscription_status(subscription.id, SubscriptionStatus.ACTIVE)
 
         await message.answer(
             f"✅ Доступ успішно надано користувачу (TG {tg_id}) на {months} міс.\n"
@@ -282,25 +322,31 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
 
     except Exception as e:
         print(f"Error granting access to TG {tg_id}: {str(e)}")
+
         await message.answer(
-            "❌ Сталася помилка під час надання доступу. Спробуйте пізніше.",
+            ERROR_MESSAGE,
             reply_markup=await admin_kb.go_back(f"admin:grant_access_{tg_id}")
         )
+
         await state.clear()
 
 
 async def open_all_accesses(callback: CallbackQuery) -> None:
     tg_id = int(callback.data.split("_")[-1])
+
     try:
         opened = await _open_subscriptions_access(tg_id)
         message_text, reply_markup = await _are_subscriptions_updated(opened, "open", tg_id)
+
         await callback.message.answer(message_text, reply_markup=reply_markup)
+
     except Exception as e:
         print(f"Error opening access for TG {tg_id}: {str(e)}")
         await callback.message.answer(
-            f"❌ Сталася помилка при відкритті доступів користувача (TG {tg_id}).",
+            ERROR_MESSAGE,
             reply_markup=await admin_kb.go_back(callback.data)
         )
+
     await callback.answer()
 
 
@@ -313,7 +359,7 @@ async def close_all_accesses(callback: CallbackQuery) -> None:
     except Exception as e:
         print(f"Error closing access for TG {tg_id}: {str(e)}")
         await callback.message.answer(
-            f"❌ Сталася помилка при закритті доступів користувача (TG {tg_id}).",
+            ERROR_MESSAGE,
             reply_markup=await admin_kb.go_back(callback.data)
         )
     await callback.answer()
@@ -405,9 +451,7 @@ async def add_module_lesson_video_document(message: Message, state: FSMContext) 
 
     except Exception as e:
         print(f"Error in add_module_lesson_video_document: {e}")
-        await message.answer(
-            "❌ Сталася помилка при обробці відеофайлу. Спробуйте ще раз або введіть «-» щоб пропустити."
-        )
+        await message.answer(ERROR_MESSAGE)
 
 
 async def skip_add_module_lesson_video(message: Message, state: FSMContext) -> None:
@@ -622,7 +666,7 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
     except Exception as e:
         print(f"Error deleting lesson {lesson_number} in module {module_number}: {str(e)}")
         await callback.message.answer(
-            f"❌ Сталася помилка під час видалення урока {lesson_number} модуля {module_number}. Спробуйте пізніше.",
+            ERROR_MESSAGE,
             reply_markup=await admin_kb.go_back(f"admin:manage_course_{module_number}")
         )
 
@@ -708,31 +752,45 @@ async def ticket_menu(callback: CallbackQuery) -> None:
 
 # ============================ Helpers (internal) ============================
 
+async def _get_subscription_status(subscriptions: List[SubscriptionReadSchemaDB]) -> str:
+    if any(s.status == "ACTIVE" for s in subscriptions):
+        return "ACTIVE"
+    elif any(s.status == "CREATED" for s in subscriptions):
+        return "CREATED"
+    elif any(s.status == "EXPIRED" for s in subscriptions):
+        return "EXPIRED"
+    elif any(s.status == "CANCELED" for s in subscriptions):
+        return "CANCELED"
+    return "NONE"
+
 
 async def _get_subscriptions_by_tg_id(tg_id: int) -> List[SubscriptionReadSchemaDB]:
     user = await get_user_by_tg_id(tg_id)
     if not user:
         return []
 
-    return await get_subscriptions_by_user_id(user.user_id)
+    return await get_subscriptions_by_user_id(user.tg_id)
 
 
 async def _open_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSchemaDB]:
     subs = await _get_subscriptions_by_tg_id(tg_user_id)
     updated: List[SubscriptionReadSchemaDB] = []
+
     for s in subs:
-        if s.status != SubscriptionStatus.ACTIVE:
-            up = await update_subscription_status(s.id, SubscriptionStatus.ACTIVE)
+        if s.status != SubscriptionStatus.CREATED:
+            up = await update_subscription_status(s.id, SubscriptionStatus.CREATED)
             if up:
                 updated.append(up)
         else:
             updated.append(s)
+
     return updated
 
 
 async def _close_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSchemaDB]:
     subs = await _get_subscriptions_by_tg_id(tg_user_id)
     updated: List[SubscriptionReadSchemaDB] = []
+
     for s in subs:
         if s.status != SubscriptionStatus.CANCELED:
             up = await update_subscription_status(s.id, SubscriptionStatus.CANCELED)
@@ -740,6 +798,7 @@ async def _close_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadS
                 updated.append(up)
         else:
             updated.append(s)
+
     return updated
 
 
@@ -758,19 +817,21 @@ async def _are_subscriptions_updated(subscriptions: List[SubscriptionReadSchemaD
         }
     }
 
-    if not subscriptions:
-        return messages[action]["error"], await admin_kb.go_back(f"admin:show_user_subscriptions_{tg_id}")
+    reply_markup = await admin_kb.go_back(f"admin:show_user_subscriptions_{tg_id}")
 
-    expected_status = SubscriptionStatus.ACTIVE if action == "open" else SubscriptionStatus.CANCELED
+    if not subscriptions:
+        return messages[action]["error"], reply_markup
+
+    expected_status = SubscriptionStatus.CREATED if action == "open" else SubscriptionStatus.CANCELED
     success_count = sum(1 for sub in subscriptions if sub.status == expected_status)
     total_count = len(subscriptions)
 
     if success_count == total_count:
-        return messages[action]["success"], await admin_kb.show_user_subscriptions(tg_id, False)
+        return messages[action]["success"], reply_markup
     elif success_count > 0:
-        return messages[action]["warn"], await admin_kb.show_user_subscriptions(tg_id, False)
+        return messages[action]["warn"], reply_markup
     else:
-        return messages[action]["error"], await admin_kb.show_user_subscriptions(tg_id, False)
+        return messages[action]["error"], reply_markup
 
 
 async def _process_create_module_lesson(message: Message, state: FSMContext, pdf_file_id: Optional[str]) -> None:
@@ -815,7 +876,7 @@ async def _process_create_module_lesson(message: Message, state: FSMContext, pdf
     except Exception as e:
         print(f"Error creating lesson for module {module_number}: {str(e)}")
         await message.answer(
-            "❌ Сталася помилка під час створення урока. Спробуйте пізніше.",
+            ERROR_MESSAGE,
             reply_markup=await admin_kb.go_back(f"admin:manage_course_{module_number}")
         )
         await state.clear()
@@ -854,16 +915,20 @@ async def _process_update_module_lesson(
 
     except Exception as e:
         print(f"Error updating {update_type} for lesson {lesson_number} in module {module_number}: {str(e)}")
+
         error_messages = {
             "title": "❌ Сталася помилка під час зміни назви уроку. Спробуйте пізніше.",
             "video_file_id": "❌ Сталася помилка під час оновлення відео. Спробуйте пізніше.",
             "pdf_file_id": "❌ Сталася помилка під час оновлення PDF. Спробуйте пізніше."
         }
-        error_message = error_messages.get(update_type, "❌ Сталася помилка під час оновлення уроку. Спробуйте пізніше.")
+
+        error_message = error_messages.get(update_type, ERROR_MESSAGE)
+
         await message.answer(
             error_message,
             reply_markup=await admin_kb.go_back(f"admin:manage_module_lesson_{module_number}_{lesson_number}")
         )
+
         await state.clear()
 
 

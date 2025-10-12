@@ -6,8 +6,12 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, Message
 
 import outboxes.admin as outbox
+from middlewares.user import IsAdminMiddleware
 
 router = Router()
+
+router.message.middleware(IsAdminMiddleware())
+router.callback_query.middleware(IsAdminMiddleware())
 
 
 # ---------------------------- FSM States ----------------------------
@@ -22,15 +26,9 @@ class CreateLessonState(StatesGroup):
     pdf = State()
 
 
-class UpdateLessonTitle(StatesGroup):
+class UpdateLessonState(StatesGroup):
     title = State()
-
-
-class UpdateLessonVideo(StatesGroup):
     video = State()
-
-
-class UpdateLessonPDF(StatesGroup):
     pdf = State()
 
 
@@ -147,43 +145,43 @@ async def show_lesson_pdf(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("admin:change_title_"))
 async def update_lesson_title(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.set_state(UpdateLessonTitle.title)
+    await state.set_state(UpdateLessonState.title)
     await outbox.update_lesson_title(callback, state)
 
 
-@router.message(F.text, StateFilter(UpdateLessonTitle.title))
+@router.message(F.text, StateFilter(UpdateLessonState.title))
 async def update_lesson_title_text(message: Message, state: FSMContext) -> None:
     await outbox.update_lesson_title_text(message, state)
 
 
 @router.callback_query(F.data.startswith("admin:change_video_"))
 async def update_lesson_video(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.set_state(UpdateLessonVideo.video)
+    await state.set_state(UpdateLessonState.video)
     await outbox.update_lesson_video(callback, state)
 
 
-@router.message(F.content_type == ContentType.VIDEO, StateFilter(UpdateLessonVideo.video))
+@router.message(F.content_type == ContentType.VIDEO, StateFilter(UpdateLessonState.video))
 async def update_lesson_video_content(message: Message, state: FSMContext) -> None:
     await outbox.update_lesson_video_content(message, state)
 
 
-@router.message(F.text == "-", StateFilter(UpdateLessonVideo.video))
+@router.message(F.text == "-", StateFilter(UpdateLessonState.video))
 async def cancel_update_lesson_video(message: Message, state: FSMContext) -> None:
     await outbox.cancel_update_lesson_video(message, state)
 
 
 @router.callback_query(F.data.startswith("admin:change_pdf_"))
 async def update_lesson_pdf(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.set_state(UpdateLessonPDF.pdf)
+    await state.set_state(UpdateLessonState.pdf)
     await outbox.update_lesson_pdf(callback, state)
 
 
-@router.message(F.content_type == ContentType.DOCUMENT, StateFilter(UpdateLessonPDF.pdf))
+@router.message(F.content_type == ContentType.DOCUMENT, StateFilter(UpdateLessonState.pdf))
 async def update_lesson_pdf_content(message: Message, state: FSMContext) -> None:
     await outbox.update_lesson_pdf_content(message, state)
 
 
-@router.message(F.text == "-", StateFilter(UpdateLessonPDF.pdf))
+@router.message(F.text == "-", StateFilter(UpdateLessonState.pdf))
 async def cancel_update_lesson_pdf(message: Message, state: FSMContext) -> None:
     await outbox.cancel_update_lesson_pdf(message, state)
 

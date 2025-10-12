@@ -100,6 +100,8 @@ async def payment_completed(request: Request):
             # 3. Создать активную подписку для пользователя
             # 4. Отправить email с токеном и кодом доступа
 
+            token: str = ""
+
             order = await get_order_by_order_id(order_id)
 
             if order:
@@ -118,9 +120,19 @@ async def payment_completed(request: Request):
 
                 await send_email(
                     order.email,
-                    "You've been registered",
-                    f"Token: {token} | Access code: {code}"
-                )  # TODO: Возвращается True после успешной отправки, можешь обработать
+                    "Lagidna Disciplina | Успішна реєстрація",
+                    f"""
+Вітаємо! Ви успішно зареєструвалися.
+
+Ваш унікальний токен для доступу: <b>{token}</b>
+Код доступу: <b>{code}</b>
+
+Збережіть ці дані — вони потрібні для входу в систему та активації вашої підписки.
+
+Якщо у вас виникнуть питання або знадобиться допомога, звертайтеся до нашої служби підтримки в боті.
+
+Дякуємо, що вибрали Lagidna Disciplina!
+                """)
 
             print(f"Обрабатываем успешную оплату для заказа {order_id}")
 

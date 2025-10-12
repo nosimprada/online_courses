@@ -14,7 +14,7 @@ async def create_subscription(sub_data: SubscriptionCreateSchemaDB) -> Subscript
 
 async def get_subscription_by_order_id(order_id: int) -> SubscriptionReadSchemaDB | None:
     async with AsyncSessionLocal() as session:
-        return await SubscriptionDAO.get_subscription_by_order_id(session, order_id)
+        return await SubscriptionDAO.get_by_order_id(session, order_id)
 
 
 async def update_subscription_status(subscription_id: int,
@@ -31,20 +31,35 @@ async def update_subscription_access_period(subscription_id: int, access_from: d
 
 async def get_subscriptions_by_user_id(user_id: int) -> List[SubscriptionReadSchemaDB]:
     async with AsyncSessionLocal() as session:
-        return await SubscriptionDAO.get_subscriptions_by_user_id(session, user_id)
+        return await SubscriptionDAO.get_by_user_id(session, user_id)
 
 
 async def get_active_subscriptions_by_user_id(user_id: int) -> List[SubscriptionReadSchemaDB]:
     async with AsyncSessionLocal() as session:
-        return await SubscriptionDAO.get_active_subscriptions_by_user_id(session, user_id)
+        return await SubscriptionDAO.get_active_by_user_id(session, user_id)
 
 
 async def update_subscription_user_id_by_subscription_id(subscription_id: int,
                                                          user_id: int) -> SubscriptionReadSchemaDB | None:
     async with AsyncSessionLocal() as session:
-        return await SubscriptionDAO.update_subscription_user_id_by_subscription_id(session, subscription_id, user_id)
+        return await SubscriptionDAO.update_user_id_by_subscription_id(session, subscription_id, user_id)
 
 
 async def get_all_active_subscriptions() -> List[SubscriptionReadSchemaDB]:
     async with AsyncSessionLocal() as session:
-        return await SubscriptionDAO.get_all_active(session)
+        return await SubscriptionDAO.get_all_by_status(session, SubscriptionStatus.ACTIVE)
+
+
+async def get_all_created_subscriptions() -> List[SubscriptionReadSchemaDB]:
+    async with AsyncSessionLocal() as session:
+        return await SubscriptionDAO.get_all_by_status(session, SubscriptionStatus.CREATED)
+
+
+async def get_all_expired_subscriptions() -> List[SubscriptionReadSchemaDB]:
+    async with AsyncSessionLocal() as session:
+        return await SubscriptionDAO.get_all_by_status(session, SubscriptionStatus.EXPIRED)
+
+
+async def get_all_canceled_subscriptions() -> List[SubscriptionReadSchemaDB]:
+    async with AsyncSessionLocal() as session:
+        return await SubscriptionDAO.get_all_by_status(session, SubscriptionStatus.CANCELED)
