@@ -29,6 +29,17 @@ async def show_module(callback: CallbackQuery) -> None:
 async def show_module_lesson_pdf(callback: CallbackQuery) -> None:
     await outbox.show_module_lesson_pdf(callback)
 
-# @router.message(F.text == "Конспекти 📝")
-# async def notes_menu(message: Message) -> None:
-#     await outbox.notes_menu(message)
+
+@router.message(F.text == "Конспекти 📝")
+async def notes_menu(message: Message) -> None:
+    await outbox.notes_menu(message)
+
+
+@router.callback_query(F.data.startswith("course:show_notes_"))
+async def show_module_notes(callback: CallbackQuery) -> None:
+    await outbox.show_module_notes(callback)
+
+
+@router.callback_query(F.data.startswith("course:show_note_"))
+async def show_lesson_note(callback: CallbackQuery) -> None:
+    await outbox.show_lesson_note(callback)

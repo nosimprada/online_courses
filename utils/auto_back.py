@@ -31,6 +31,7 @@ _BACK_RULES: List[Tuple[str, Callable[[re.Match[str]], str]]] = [
     # User: Courses
     (r"^course:module_lesson_(\d+)_(\d+)$", lambda m: f"course:module_{m.group(1)}"),
     (r"^course:show_pdf_(\d+)_(\d+)$", lambda m: f"course:module_lesson_{m.group(1)}_{m.group(2)}"),
+    (r"^course:show_note_(\d+)_(\d+)$", lambda m: f"course:show_notes_{m.group(1)}"),
 ]
 
 

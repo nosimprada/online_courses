@@ -48,7 +48,7 @@ class UserDAO:
 
     @staticmethod
     async def get_all_users(session: AsyncSession) -> List[UserReadSchemaDB]:
-        result = await session.execute(select(User))
+        result = await session.execute(select(User).order_by(User.created_at.desc()))
         users = result.scalars().all()
 
         return [UserReadSchemaDB.model_validate(user) for user in users]

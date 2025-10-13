@@ -18,15 +18,20 @@ from utils.services.subscription import (
 from utils.services.user import create_user, get_user_by_tg_id, get_user_full_info_by_tg_id
 
 
-async def start_menu(message: Message | CallbackQuery):
+async def start_menu(message: Message | CallbackQuery, user_id: int | None = None):
     full_user_info: UserReadFullInfoSchemaDB = None
 
-    if isinstance(message, Message):
-        full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
+    if user_id:
+        full_user_info = await get_user_full_info_by_tg_id(user_id)
         print(f"FULL USER INFO: {full_user_info}")
-    elif isinstance(message, CallbackQuery):
-        full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
-        print(f"FULL USER INFO: {full_user_info}")
+    else:
+        if isinstance(message, Message):
+            full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
+            print(f"FULL USER INFO: {full_user_info}")
+
+        elif isinstance(message, CallbackQuery):
+            full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
+            print(f"FULL USER INFO: {full_user_info}")
 
     if not full_user_info:
         if isinstance(message, Message):
@@ -37,8 +42,13 @@ async def start_menu(message: Message | CallbackQuery):
             return
 
     is_admin = False
-    if message.from_user.id == ADMIN_CHAT_ID:
-        is_admin = True
+
+    if user_id:
+        if user_id == ADMIN_CHAT_ID:
+            is_admin = True
+    else:
+        if message.from_user.id == ADMIN_CHAT_ID:
+            is_admin = True
 
     msg_text = f"""
 Привіт, {full_user_info.username}!

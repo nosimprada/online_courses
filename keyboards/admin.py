@@ -47,8 +47,6 @@ async def show_user_data(user_id: int) -> InlineKeyboardMarkup:
 
     builder.button(text="🎟️ Доступи", callback_data=f"admin:show_user_subscriptions_{user_id}")
 
-    await add_auto_back(builder, f"admin:show_user_{user_id}")
-
     builder.adjust(1)
 
     return builder.as_markup()

@@ -5,8 +5,10 @@ from uuid import uuid4
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup
 from aiogram.utils.media_group import MediaGroupBuilder
+from pytz import timezone
 
 import keyboards.admin as admin_kb
+from outboxes.start import start_menu
 from utils.enums.order import OrderStatus
 from utils.enums.subscription import SubscriptionStatus
 from utils.enums.ticket import TicketStatus
@@ -117,7 +119,7 @@ async def show_users(message: Message) -> None:
 
             users_with_status.append({
                 "user": user,
-                "emoji": STATUS_EMOJI[await _get_subscription_status(subs)]
+                "emoji": STATUS_EMOJI.get(await _get_subscription_status(subs), "⚪")
             })
 
         emojis_info = (
@@ -307,17 +309,28 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
         if not user:
             raise RuntimeError("User not found by TG ID")
 
-        access_from = datetime.now()
+        access_from = datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None)
         access_to = access_from + timedelta(days=months * 30)
 
         await update_subscription_user_id_by_subscription_id(subscription.id, user.tg_id)
         await update_subscription_access_period(subscription.id, access_from, access_to)
+
+        await update_subscription_status(subscription.id, new_status=SubscriptionStatus.ACTIVE)
 
         await message.answer(
             f"✅ Доступ успішно надано користувачу (TG {tg_id}) на {months} міс.\n"
             f"📅 Доступ до: {_format_date(access_to)}",
             reply_markup=await admin_kb.go_back(f"admin:show_user_subscriptions_{tg_id}")
         )
+
+        # await message.bot.send_message(
+        #     tg_id,
+        #     f"✅ Адміністратор надав вам доступ до курсів на {months} міс.\n"
+        #     f"📅 Дата закінчення доступу: {_format_date(access_to)}"
+        # )
+
+        await start_menu(message, tg_id)
+
         await state.clear()
 
     except Exception as e:
@@ -641,7 +654,7 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
 
     try:
         lesson = await get_lesson_by_module_and_lesson_number(module_number, lesson_number)
-        if not lesson:
+        if lesson is None:
             await callback.message.answer(
                 f"❌ Урок №{lesson_number} у модулі №{module_number} не знайдено.",
                 reply_markup=await admin_kb.go_back(callback.data)
@@ -753,13 +766,13 @@ async def ticket_menu(callback: CallbackQuery) -> None:
 # ============================ Helpers (internal) ============================
 
 async def _get_subscription_status(subscriptions: List[SubscriptionReadSchemaDB]) -> str:
-    if any(s.status == "ACTIVE" for s in subscriptions):
+    if any(s.status == SubscriptionStatus.ACTIVE for s in subscriptions):
         return "ACTIVE"
-    elif any(s.status == "CREATED" for s in subscriptions):
+    elif any(s.status == SubscriptionStatus.CREATED for s in subscriptions):
         return "CREATED"
-    elif any(s.status == "EXPIRED" for s in subscriptions):
+    elif any(s.status == SubscriptionStatus.EXPIRED for s in subscriptions):
         return "EXPIRED"
-    elif any(s.status == "CANCELED" for s in subscriptions):
+    elif any(s.status == SubscriptionStatus.CANCELED for s in subscriptions):
         return "CANCELED"
     return "NONE"
 
@@ -769,7 +782,7 @@ async def _get_subscriptions_by_tg_id(tg_id: int) -> List[SubscriptionReadSchema
     if not user:
         return []
 
-    return await get_subscriptions_by_user_id(user.tg_id)
+    return await get_subscriptions_by_user_id(user.id)
 
 
 async def _open_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSchemaDB]:
