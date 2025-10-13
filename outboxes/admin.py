@@ -32,7 +32,7 @@ from utils.services.subscription import (
     update_subscription_status,
     update_subscription_access_period,
     update_subscription_user_id_by_subscription_id, get_all_created_subscriptions, get_all_expired_subscriptions,
-    get_all_canceled_subscriptions, get_subscriptions_by_tg_id, )
+    get_all_canceled_subscriptions, get_subscriptions_by_tg_id)
 from utils.services.ticket import get_pending_tickets, get_open_tickets, get_closed_tickets, get_ticket_by_id
 from utils.services.user import get_all_users, get_user_by_tg_id, get_user_full_info_by_tg_id
 
@@ -780,8 +780,8 @@ async def _get_subscription_status(subscriptions: List[SubscriptionReadSchemaDB]
     return "NONE"
 
 
-async def _open_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSchemaDB]:
-    subs = await get_subscriptions_by_tg_id(tg_user_id)
+async def _open_subscriptions_access(tg_id: int) -> List[SubscriptionReadSchemaDB]:
+    subs = await get_subscriptions_by_tg_id(tg_id)
     updated: List[SubscriptionReadSchemaDB] = []
 
     for s in subs:
@@ -795,8 +795,8 @@ async def _open_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSc
     return updated
 
 
-async def _close_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSchemaDB]:
-    subs = await get_subscriptions_by_tg_id(tg_user_id)
+async def _close_subscriptions_access(tg_id: int) -> List[SubscriptionReadSchemaDB]:
+    subs = await get_subscriptions_by_tg_id(tg_id)
     updated: List[SubscriptionReadSchemaDB] = []
 
     for s in subs:
