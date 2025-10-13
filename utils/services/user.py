@@ -11,7 +11,7 @@ from utils.schemas.user import (
     UserReadSchemaDB,
 )
 from utils.services.order import get_orders_by_tg_id
-from utils.services.subscription import get_subscriptions_by_user_id
+from utils.services.subscription import get_subscriptions_by_tg_id
 
 
 async def create_user(user_data: UserCreateSchemaDB) -> UserReadSchemaDB:
@@ -63,9 +63,8 @@ async def get_user_full_info_by_tg_id(tg_id: int) -> UserReadFullInfoSchemaDB | 
     ]
 
     internal_user_id = getattr(user_data, "id", None)
-    subs_user_id = internal_user_id if internal_user_id is not None else user_data.user_id
 
-    subscriptions = await get_subscriptions_by_user_id(subs_user_id) or []
+    subscriptions = await get_subscriptions_by_tg_id(tg_id) or []
 
     active_subscriptions = [s for s in subscriptions if s.status == SubscriptionStatus.ACTIVE]
     expired_subscription_ids = [s.id for s in subscriptions if s.status == SubscriptionStatus.EXPIRED]

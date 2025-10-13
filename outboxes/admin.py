@@ -28,12 +28,11 @@ from utils.services.lesson import (
 from utils.services.order import create_order
 from utils.services.subscription import (
     create_subscription,
-    get_subscriptions_by_user_id,
     get_all_active_subscriptions,
     update_subscription_status,
     update_subscription_access_period,
     update_subscription_user_id_by_subscription_id, get_all_created_subscriptions, get_all_expired_subscriptions,
-    get_all_canceled_subscriptions, )
+    get_all_canceled_subscriptions, get_subscriptions_by_tg_id, )
 from utils.services.ticket import get_pending_tickets, get_open_tickets, get_closed_tickets, get_ticket_by_id
 from utils.services.user import get_all_users, get_user_by_tg_id, get_user_full_info_by_tg_id
 
@@ -115,7 +114,11 @@ async def show_users(message: Message) -> None:
         users_with_status: List[Dict[UserReadSchemaDB, str]] = []
 
         for user in users:
-            subs = await _get_subscriptions_by_tg_id(user.tg_id)
+            subs = await get_subscriptions_by_tg_id(user.tg_id)
+            print("DEBUG subs:", subs)
+
+            for s in subs:
+                print(f"ID={s.id}, status={s.status}, type={type(s.status)}")
 
             users_with_status.append({
                 "user": user,
@@ -200,7 +203,7 @@ async def show_user_subscriptions(callback: CallbackQuery) -> None:
     try:
         tg_id = int(callback.data.split("_")[-1])
 
-        subscriptions = await _get_subscriptions_by_tg_id(tg_id)
+        subscriptions = await get_subscriptions_by_tg_id(tg_id)
         if not subscriptions:
             await callback.message.answer(
                 "❌ Користувач не має доступів.",
@@ -777,16 +780,8 @@ async def _get_subscription_status(subscriptions: List[SubscriptionReadSchemaDB]
     return "NONE"
 
 
-async def _get_subscriptions_by_tg_id(tg_id: int) -> List[SubscriptionReadSchemaDB]:
-    user = await get_user_by_tg_id(tg_id)
-    if not user:
-        return []
-
-    return await get_subscriptions_by_user_id(user.id)
-
-
 async def _open_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSchemaDB]:
-    subs = await _get_subscriptions_by_tg_id(tg_user_id)
+    subs = await get_subscriptions_by_tg_id(tg_user_id)
     updated: List[SubscriptionReadSchemaDB] = []
 
     for s in subs:
@@ -801,7 +796,7 @@ async def _open_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSc
 
 
 async def _close_subscriptions_access(tg_user_id: int) -> List[SubscriptionReadSchemaDB]:
-    subs = await _get_subscriptions_by_tg_id(tg_user_id)
+    subs = await get_subscriptions_by_tg_id(tg_user_id)
     updated: List[SubscriptionReadSchemaDB] = []
 
     for s in subs:

@@ -64,8 +64,8 @@ class SubscriptionDAO:
         return None
 
     @staticmethod
-    async def get_by_user_id(session: AsyncSession, user_id: int) -> List[SubscriptionReadSchemaDB]:
-        result = await session.execute(select(Subscription).where(Subscription.user_id == user_id))
+    async def get_by_tg_id(session: AsyncSession, tg_id: int) -> List[SubscriptionReadSchemaDB]:
+        result = await session.execute(select(Subscription).where(Subscription.user_id == tg_id))
         subscriptions: Sequence[Subscription] = result.scalars().all()
 
         return _subscriptions_as_schema(subscriptions)

@@ -29,9 +29,9 @@ async def update_subscription_access_period(subscription_id: int, access_from: d
         return await SubscriptionDAO.update_access_period(session, subscription_id, access_from, access_to)
 
 
-async def get_subscriptions_by_user_id(user_id: int) -> List[SubscriptionReadSchemaDB]:
+async def get_subscriptions_by_tg_id(tg_id: int) -> List[SubscriptionReadSchemaDB]:
     async with AsyncSessionLocal() as session:
-        return await SubscriptionDAO.get_by_user_id(session, user_id)
+        return await SubscriptionDAO.get_by_tg_id(session, tg_id)
 
 
 async def get_active_subscriptions_by_user_id(user_id: int) -> List[SubscriptionReadSchemaDB]:
