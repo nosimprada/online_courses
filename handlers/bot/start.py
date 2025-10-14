@@ -6,12 +6,20 @@ from config import ADMIN_CHAT_ID
 from outboxes.admin import menu as admin_menu
 from outboxes.start import registration_func, start_menu
 from utils.services.user import get_user_by_tg_id
+from aiogram.filters import StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 
 router = Router()
 
+# ---------------------------- FSM States ----------------------------
+
+class RefCode(StatesGroup):
+    get_ref_code = State()
+
 
 @router.message(CommandStart())
-async def start_command_handler(message: Message):
+async def start_command_handler(message: Message, state: FSMContext):
     if message.from_user.id == ADMIN_CHAT_ID:
         await admin_menu(message)
         return
@@ -30,13 +38,19 @@ async def start_command_handler(message: Message):
             print('Сработала регистрация')
 
         else:
-            await message.answer("Welcome! Use the menu below to navigate.")
-
-            await registration_func(message)
-            print('Сработала регистрация')
-
+            await message.answer("Активних підписок немає. Введіть будь ласка код, який був надісланий вам на електронну пошту.")
+            await state.set_state(RefCode.get_ref_code)
+            
     else:
         await start_menu(message)
+
+@router.message(StateFilter(RefCode.get_ref_code))
+async def process_ref_code(message: Message, state: FSMContext):
+    ref_code = message.text.strip()
+    print(f"РЕФЕРАЛЬНЫЙ КОД: {ref_code}")
+
+    await registration_func(message, ref_code)
+    await state.clear()
 
 
 @router.message(F.text == "🔁 На головну")
