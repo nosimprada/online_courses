@@ -5,8 +5,10 @@ from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardMarkup, ReplyKeyboardBuilder
 
 from utils.auto_back import add_auto_back
+from utils.enums.subscription import SubscriptionStatus
 from utils.enums.ticket import TicketStatus
 from utils.schemas.lesson import LessonReadSchemaDB
+from utils.schemas.subscription import SubscriptionReadSchemaDB
 from utils.schemas.ticket import TicketReadSchemaDB
 from utils.schemas.user import UserReadSchemaDB
 
@@ -52,16 +54,37 @@ async def show_user_data(user_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-async def show_user_subscriptions(user_id: int, is_null: bool) -> InlineKeyboardMarkup:
+async def show_user_subscriptions(
+        subscriptions: List[SubscriptionReadSchemaDB],
+        user_id: int, is_null: bool
+) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
     builder.button(text="➕ Надати доступ", callback_data=f"admin:grant_access_{user_id}")
 
     if not is_null:
-        builder.button(text="✅ Відкрити всі доступи", callback_data=f"admin:open_all_accesses_{user_id}")
-        builder.button(text="❌ Закрити всі доступи", callback_data=f"admin:close_all_accesses_{user_id}")
+        for sub in subscriptions:
+            builder.button(
+                text=f"🎟️ Доступ №{sub.id}",
+                callback_data=f"admin:show_subscription_{sub.id}"
+            )
 
     await add_auto_back(builder, f"admin:show_user_subscriptions_{user_id}")
+
+    builder.adjust(1)
+
+    return builder.as_markup()
+
+
+async def show_subscription(subscription: SubscriptionReadSchemaDB) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    if subscription.status != SubscriptionStatus.ACTIVE:
+        builder.button(text="✅ Відкрити доступ", callback_data=f"admin:open_subscription_{subscription.id}")
+    elif subscription.status != SubscriptionStatus.CANCELED:
+        builder.button(text="❌ Закрити доступ", callback_data=f"admin:close_subscription_{subscription.id}")
+
+    await add_auto_back(builder, f"admin:show_subscription_{subscription.user_id}")
 
     builder.adjust(1)
 

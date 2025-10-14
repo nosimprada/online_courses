@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from aiogram import Bot
 from aiogram.types import Message, CallbackQuery
 from pytz import timezone
 
@@ -20,37 +21,27 @@ from utils.services.subscription import (
 from utils.services.user import create_user, get_user_by_tg_id, get_user_full_info_by_tg_id
 
 
-async def start_menu(message: Message | CallbackQuery, user_id: int | None = None):
+async def start_menu(message: Message | CallbackQuery):
     full_user_info: UserReadFullInfoSchemaDB = None
 
-    if user_id:
-        full_user_info = await get_user_full_info_by_tg_id(user_id)
+    if isinstance(message, Message):
+        full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
         print(f"FULL USER INFO: {full_user_info}")
-    else:
-        if isinstance(message, Message):
-            full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
-            print(f"FULL USER INFO: {full_user_info}")
 
-        elif isinstance(message, CallbackQuery):
-            full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
-            print(f"FULL USER INFO: {full_user_info}")
+    elif isinstance(message, CallbackQuery):
+        full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
+        print(f"FULL USER INFO: {full_user_info}")
 
     if not full_user_info:
         if isinstance(message, Message):
-            await message.answer("Error retrieving user information.")
+            await message.answer("❌ Не вдалося отримати інформацію про користувача.")
             return
+
         elif isinstance(message, CallbackQuery):
-            await message.message.answer("Error retrieving user information.")
+            await message.message.answer("❌ Не вдалося отримати інформацію про користувача.")
             return
 
-    is_admin = False
-
-    if user_id:
-        if user_id == ADMIN_CHAT_ID:
-            is_admin = True
-    else:
-        if message.from_user.id == ADMIN_CHAT_ID:
-            is_admin = True
+    is_admin = message.from_user.id == ADMIN_CHAT_ID
 
     msg_text = f"""
 Привіт, {full_user_info.username}!
@@ -62,8 +53,29 @@ async def start_menu(message: Message | CallbackQuery, user_id: int | None = Non
 
     if isinstance(message, Message):
         await message.answer(msg_text, reply_markup=await start_menu_keyboard(is_admin))
+
     elif isinstance(message, CallbackQuery):
         await message.message.answer(msg_text, reply_markup=await start_menu_keyboard(is_admin))
+
+
+async def send_start_menu_to_user(bot: Bot, user_id: int) -> None:
+    full_user_info: UserReadFullInfoSchemaDB = await get_user_full_info_by_tg_id(user_id)
+
+    if not full_user_info:
+        await bot.send_message(user_id, "❌ Не вдалося отримати інформацію про користувача.")
+        return
+
+    is_admin = user_id == ADMIN_CHAT_ID
+
+    msg_text = f"""
+        Привіт, {full_user_info.username}!
+        {'✅ Ви маєте активну підписку!' if full_user_info.is_subscribed else '❌ У вас немає активної підписки.'}
+    
+        Прогрес навчання: {full_user_info.leaning_progress_procent:.2f}%
+        Дата закінчення підписки: {_format_date(full_user_info.subscription_access_to)}
+    """
+
+    await bot.send_message(chat_id=user_id, text=msg_text, reply_markup=await start_menu_keyboard(is_admin))
 
 
 async def registration_func(message: Message, ref_code: str | None = None):
@@ -197,4 +209,3 @@ async def register_ref_code_handler(code: str, message: Message):
         print(f"=== ОШИБКА ПРИ ОБРАБОТКЕ РЕФЕРАЛЬНОГО КОДА: {e} ===")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
 # ...existing code...
-                        

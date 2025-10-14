@@ -3,12 +3,13 @@ from typing import Final, List, Tuple, Optional, Set, Dict
 from uuid import uuid4
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery, Message
 from aiogram.utils.media_group import MediaGroupBuilder
 from pytz import timezone
 
 import keyboards.admin as admin_kb
-from outboxes.start import start_menu
+from keyboards.admin import go_back
+from outboxes.start import send_start_menu_to_user
 from utils.enums.order import OrderStatus
 from utils.enums.subscription import SubscriptionStatus
 from utils.enums.ticket import TicketStatus
@@ -32,7 +33,7 @@ from utils.services.subscription import (
     update_subscription_status,
     update_subscription_access_period,
     update_subscription_user_id_by_subscription_id, get_all_created_subscriptions, get_all_expired_subscriptions,
-    get_all_canceled_subscriptions, get_subscriptions_by_tg_id)
+    get_all_canceled_subscriptions, get_subscriptions_by_tg_id, get_subscription_by_id)
 from utils.services.ticket import get_pending_tickets, get_open_tickets, get_closed_tickets, get_ticket_by_id
 from utils.services.user import get_all_users, get_user_by_tg_id, get_user_full_info_by_tg_id
 
@@ -204,26 +205,18 @@ async def show_user_subscriptions(callback: CallbackQuery) -> None:
         tg_id = int(callback.data.split("_")[-1])
 
         subscriptions = await get_subscriptions_by_tg_id(tg_id)
+
         if not subscriptions:
             await callback.message.answer(
                 "❌ Користувач не має доступів.",
-                reply_markup=await admin_kb.show_user_subscriptions(tg_id, True)
+                reply_markup=await admin_kb.show_user_subscriptions(subscriptions, tg_id, True)
             )
             await callback.answer()
             return
 
-        msg = f"\n<i>🎟️ Доступи користувача (TG {tg_id}):</i>\n\n"
-        for subscription in subscriptions:
-            msg += f"🎟️ <b>ID:</b> <code>{subscription.id}</code>\n"
-            msg += f"📦 <b>ID замовлення:</b> <code>{subscription.order_id}</code>\n"
-            msg += f"📅 <b>Початок доступу:</b> <code>{_format_date(subscription.access_from)}</code>\n"
-            msg += f"📅 <b>Кінець доступу:</b> <code>{_format_date(subscription.access_to)}</code>\n"
-            msg += f"🔔 <b>Статус:</b> <code>{subscription.status.value}</code>\n"
-            msg += f"⌚ <b>Створено:</b> <code>{_format_date(subscription.created_at)}</code>\n\n"
-
         await callback.message.answer(
-            msg,
-            reply_markup=await admin_kb.show_user_subscriptions(tg_id, False)
+            f"🎟️ <b>Кількість доступів користувача:</b> <code>{len(subscriptions)}</code> <b>(TG {tg_id})</b>",
+            reply_markup=await admin_kb.show_user_subscriptions(subscriptions, tg_id, False)
         )
 
     except Exception as e:
@@ -233,13 +226,54 @@ async def show_user_subscriptions(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+async def show_user_subscription(callback: CallbackQuery) -> None:
+    try:
+        subscription_id = int(callback.data.split("_")[-1])
+        subscription = await get_subscription_by_id(subscription_id)
+
+        if subscription is None:
+            await callback.message.answer(
+                "❌ Підписка не знайдена.",
+                reply_markup=await go_back(callback.data)
+            )
+            await callback.answer()
+            return
+
+        msg = (
+            f"🎟️ Доступ №{subscription.id} користувача (TG {subscription.user_id})\n\n" if subscription.user_id
+            else f"🎟️ Доступ №{subscription.id}\n\n"
+        )
+
+        msg += f"🆔 <b>ID:</b> <code>{subscription.id}</code>\n"
+        msg += f"📦 <b>ID замовлення:</b> <code>{subscription.order_id}</code>\n"
+
+        msg += f"📅 <b>Початок доступу:</b> <code>{_format_date(subscription.access_from)}</code>\n" if (
+            subscription.access_from) else ""
+
+        msg += f"📅 <b>Кінець доступу:</b> <code>{_format_date(subscription.access_to)}</code>\n" if (
+            subscription.access_to) else ""
+
+        msg += f"🔔 <b>Статус:</b> <code>{subscription.status.value}</code>\n"
+
+        msg += f"⌚ <b>Створено:</b> <code>{_format_date(subscription.created_at)}</code>\n\n" if (
+            subscription.created_at) else "\n"
+
+        await callback.message.answer(msg, reply_markup=await admin_kb.show_subscription(subscription))
+
+    except Exception as e:
+        print(f"Error showing user subscription for admin: {str(e)}")
+        await callback.message.answer(ERROR_MESSAGE, await go_back(callback.data))
+
+    await callback.answer()
+
+
 async def show_active_accesses(callback: CallbackQuery) -> None:
-    go_back = await admin_kb.go_back(callback.data)
+    back = await admin_kb.go_back(callback.data)
 
     try:
         active_subscriptions = await get_all_active_subscriptions()
         if not active_subscriptions:
-            await callback.message.answer("❌ Немає активних доступів.", reply_markup=go_back)
+            await callback.message.answer("❌ Немає активних доступів.", reply_markup=back)
             await callback.answer()
             return
 
@@ -252,11 +286,11 @@ async def show_active_accesses(callback: CallbackQuery) -> None:
             msg += f"📅 <b>Кінець доступу:</b> <code>{_format_date(subscription.access_to)}</code>\n"
             msg += f"⏰ <b>Створено:</b> <code>{_format_date(subscription.created_at)}</code>\n\n"
 
-        await callback.message.answer(msg, reply_markup=go_back)
+        await callback.message.answer(msg, reply_markup=back)
 
     except Exception as e:
         print(f"Error showing active accesses: {str(e)}")
-        await callback.message.answer(ERROR_MESSAGE, reply_markup=go_back)
+        await callback.message.answer(ERROR_MESSAGE, reply_markup=back)
 
     await callback.answer()
 
@@ -332,7 +366,7 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
         #     f"📅 Дата закінчення доступу: {_format_date(access_to)}"
         # )
 
-        await start_menu(message, tg_id)
+        await send_start_menu_to_user(message.bot, tg_id)
 
         await state.clear()
 
@@ -347,38 +381,12 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
         await state.clear()
 
 
-async def open_all_accesses(callback: CallbackQuery) -> None:
-    tg_id = int(callback.data.split("_")[-1])
-
-    try:
-        opened = await _open_subscriptions_access(tg_id)
-        message_text, reply_markup = await _are_subscriptions_updated(opened, "open", tg_id)
-
-        await callback.message.answer(message_text, reply_markup=reply_markup)
-
-    except Exception as e:
-        print(f"Error opening access for TG {tg_id}: {str(e)}")
-        await callback.message.answer(
-            ERROR_MESSAGE,
-            reply_markup=await admin_kb.go_back(callback.data)
-        )
-
-    await callback.answer()
+async def open_subscription_access(callback: CallbackQuery) -> None:
+    await _process_update_subscription_status(callback, "open")
 
 
-async def close_all_accesses(callback: CallbackQuery) -> None:
-    tg_id = int(callback.data.split("_")[-1])
-    try:
-        closed = await _close_subscriptions_access(tg_id)
-        message_text, reply_markup = await _are_subscriptions_updated(closed, "close", tg_id)
-        await callback.message.answer(message_text, reply_markup=reply_markup)
-    except Exception as e:
-        print(f"Error closing access for TG {tg_id}: {str(e)}")
-        await callback.message.answer(
-            ERROR_MESSAGE,
-            reply_markup=await admin_kb.go_back(callback.data)
-        )
-    await callback.answer()
+async def close_subscription_access(callback: CallbackQuery) -> None:
+    await _process_update_subscription_status(callback, "close")
 
 
 # ============================ Courses / Lessons ============================
@@ -768,6 +776,43 @@ async def ticket_menu(callback: CallbackQuery) -> None:
 
 # ============================ Helpers (internal) ============================
 
+
+async def _process_update_subscription_status(callback: CallbackQuery, action: str) -> None:
+    subscription_id = int(callback.data.split("_")[-1])
+    back = await go_back(callback.data)
+
+    status: SubscriptionStatus = None
+    message: str = None
+
+    if action == "open":
+        status = SubscriptionStatus.ACTIVE
+        message = "✅ Доступ №{sub_id} користувача (TG: {user_id}) успішно відкрито."
+
+    elif action == "close":
+        status = SubscriptionStatus.CANCELED
+        message = "✅ Доступ №{sub_id} користувача (TG: {user_id}) успішно закрито."
+
+    try:
+        updated = await update_subscription_status(subscription_id, status)
+        if updated is None:
+            await callback.message.answer(ERROR_MESSAGE, back)
+            return
+
+        await callback.message.answer(
+            message.format(sub_id=updated.id, user_id=updated.user_id),
+            reply_markup=back
+        )
+
+    except Exception as e:
+        print(f"Error updating access for subscription (id {subscription_id}): {str(e)}")
+        await callback.message.answer(
+            ERROR_MESSAGE,
+            reply_markup=back
+        )
+
+    await callback.answer()
+
+
 async def _get_subscription_status(subscriptions: List[SubscriptionReadSchemaDB]) -> str:
     if any(s.status == SubscriptionStatus.ACTIVE for s in subscriptions):
         return "ACTIVE"
@@ -778,68 +823,6 @@ async def _get_subscription_status(subscriptions: List[SubscriptionReadSchemaDB]
     elif any(s.status == SubscriptionStatus.CANCELED for s in subscriptions):
         return "CANCELED"
     return "NONE"
-
-
-async def _open_subscriptions_access(tg_id: int) -> List[SubscriptionReadSchemaDB]:
-    subs = await get_subscriptions_by_tg_id(tg_id)
-    updated: List[SubscriptionReadSchemaDB] = []
-
-    for s in subs:
-        if s.status != SubscriptionStatus.CREATED:
-            up = await update_subscription_status(s.id, SubscriptionStatus.CREATED)
-            if up:
-                updated.append(up)
-        else:
-            updated.append(s)
-
-    return updated
-
-
-async def _close_subscriptions_access(tg_id: int) -> List[SubscriptionReadSchemaDB]:
-    subs = await get_subscriptions_by_tg_id(tg_id)
-    updated: List[SubscriptionReadSchemaDB] = []
-
-    for s in subs:
-        if s.status != SubscriptionStatus.CANCELED:
-            up = await update_subscription_status(s.id, SubscriptionStatus.CANCELED)
-            if up:
-                updated.append(up)
-        else:
-            updated.append(s)
-
-    return updated
-
-
-async def _are_subscriptions_updated(subscriptions: List[SubscriptionReadSchemaDB], action: str, tg_id: int
-                                     ) -> Tuple[str, InlineKeyboardMarkup]:
-    messages = {
-        "open": {
-            "success": f"✅ Всі доступи користувача (TG {tg_id}) успішно відкрито.",
-            "warn": f"⚠️ Частково відкрито доступи користувача (TG {tg_id}). Деякі доступи не вдалося відкрити.",
-            "error": f"❌ Не вдалося відкрити доступи користувача (TG {tg_id})."
-        },
-        "close": {
-            "success": f"✅ Всі доступи користувача (TG {tg_id}) успішно закрито.",
-            "warn": f"⚠️ Частково закрито доступи користувача (TG {tg_id}). Деякі доступи не вдалося закрити.",
-            "error": f"❌ Не вдалося закрити доступи користувача (TG {tg_id})."
-        }
-    }
-
-    reply_markup = await admin_kb.go_back(f"admin:show_user_subscriptions_{tg_id}")
-
-    if not subscriptions:
-        return messages[action]["error"], reply_markup
-
-    expected_status = SubscriptionStatus.CREATED if action == "open" else SubscriptionStatus.CANCELED
-    success_count = sum(1 for sub in subscriptions if sub.status == expected_status)
-    total_count = len(subscriptions)
-
-    if success_count == total_count:
-        return messages[action]["success"], reply_markup
-    elif success_count > 0:
-        return messages[action]["warn"], reply_markup
-    else:
-        return messages[action]["error"], reply_markup
 
 
 async def _process_create_module_lesson(message: Message, state: FSMContext, pdf_file_id: Optional[str]) -> None:

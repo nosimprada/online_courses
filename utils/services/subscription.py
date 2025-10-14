@@ -12,6 +12,11 @@ async def create_subscription(sub_data: SubscriptionCreateSchemaDB) -> Subscript
         return await SubscriptionDAO.create(session, sub_data)
 
 
+async def get_subscription_by_id(subscription_id: int) -> SubscriptionReadSchemaDB | None:
+    async with AsyncSessionLocal() as session:
+        return await SubscriptionDAO.get_by_id(session, subscription_id)
+
+
 async def get_subscription_by_order_id(order_id: int) -> SubscriptionReadSchemaDB | None:
     async with AsyncSessionLocal() as session:
         return await SubscriptionDAO.get_by_order_id(session, order_id)

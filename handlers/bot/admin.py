@@ -72,14 +72,24 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
     await outbox.input_grant_access(message, state)
 
 
-@router.callback_query(F.data.startswith("admin:open_all_accesses_"))
-async def open_all_accesses(callback: CallbackQuery) -> None:
-    await outbox.open_all_accesses(callback)
+@router.callback_query(F.data.startswith("admin:show_user_subscriptions_"))
+async def show_user_subscriptions(callback: CallbackQuery) -> None:
+    await outbox.show_user_subscriptions(callback)
 
 
-@router.callback_query(F.data.startswith("admin:close_all_accesses_"))
-async def close_all_accesses(callback: CallbackQuery) -> None:
-    await outbox.close_all_accesses(callback)
+@router.callback_query(F.data.startswith("admin:show_subscription_"))
+async def show_user_subscription(callback: CallbackQuery) -> None:
+    await outbox.show_user_subscription(callback)
+
+
+@router.callback_query(F.data.startswith("admin:open_subscription_"))
+async def show_user_subscription(callback: CallbackQuery) -> None:
+    await outbox.open_subscription_access(callback)
+
+
+@router.callback_query(F.data.startswith("admin:close_subscription_"))
+async def close_subscription_access(callback: CallbackQuery) -> None:
+    await outbox.close_subscription_access(callback)
 
 
 # ---------------------------- Courses / Lessons ----------------------------

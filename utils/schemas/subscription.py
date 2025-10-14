@@ -14,9 +14,9 @@ class SubscriptionReadSchemaDB(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    user_id: Optional[int] = None
+    user_id: Optional[int]
     order_id: int
-    access_from: datetime | None
-    access_to: datetime | None
+    access_from: Optional[datetime]
+    access_to: Optional[datetime]
     status: SubscriptionStatus
-    created_at: datetime | None
+    created_at: Optional[datetime]

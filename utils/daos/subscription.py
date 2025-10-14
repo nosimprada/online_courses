@@ -23,6 +23,16 @@ class SubscriptionDAO:
         return SubscriptionReadSchemaDB.model_validate(subscription)
 
     @staticmethod
+    async def get_by_id(session: AsyncSession, subscription_id: int) -> SubscriptionReadSchemaDB | None:
+        result = await session.execute(select(Subscription).where(Subscription.id == subscription_id))
+        subscription = result.scalars().first()
+
+        if subscription:
+            return SubscriptionReadSchemaDB.model_validate(subscription)
+
+        return None
+
+    @staticmethod
     async def get_by_order_id(session: AsyncSession, order_id: int) -> SubscriptionReadSchemaDB | None:
         result = await session.execute(
             select(Subscription).where(Subscription.order_id == order_id)
@@ -65,7 +75,10 @@ class SubscriptionDAO:
 
     @staticmethod
     async def get_by_tg_id(session: AsyncSession, tg_id: int) -> List[SubscriptionReadSchemaDB]:
-        result = await session.execute(select(Subscription).where(Subscription.user_id == tg_id))
+        result = await session.execute(
+            select(Subscription).where(Subscription.user_id == tg_id)
+            .order_by(Subscription.created_at.desc())
+        )
         subscriptions: Sequence[Subscription] = result.scalars().all()
 
         return _subscriptions_as_schema(subscriptions)

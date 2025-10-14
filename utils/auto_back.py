@@ -10,8 +10,9 @@ _BACK_RULES: List[Tuple[str, Callable[[re.Match[str]], str]]] = [
     (r"^admin:show_user_orders_(\d+)$", lambda m: f"admin:show_user_{m.group(1)}"),
     (r"^admin:show_user_subscriptions_(\d+)$", lambda m: f"admin:show_user_{m.group(1)}"),
     (r"^admin:grant_access_(\d+)$", lambda m: f"admin:show_user_subscriptions_{m.group(1)}"),
-    (r"^admin:open_all_accesses_(\d+)$", lambda m: f"admin:show_user_subscriptions_{m.group(1)}"),
-    (r"^admin:close_all_accesses_(\d+)$", lambda m: f"admin:show_user_subscriptions_{m.group(1)}"),
+    (r"^admin:show_subscription_(\d+)$", lambda m: f"admin:show_user_subscriptions_{m.group(1)}"),
+    (r"^admin:open_subscription_(\d+)$", lambda m: f"admin:show_subscription_{m.group(1)}"),
+    (r"^admin:close_subscription_(\d+)$", lambda m: f"admin:show_subscription_{m.group(1)}"),
 
     # Admin: Courses
     (r"^admin:manage_course_(\d+)$", lambda m: f"admin:back_to_menu"),

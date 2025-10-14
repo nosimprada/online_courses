@@ -19,7 +19,7 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    order_id = Column(Integer, unique=True, nullable=True, index=True)
+    order_id = Column(BigInteger, unique=True, nullable=True, index=True)
     invoice_id = Column(String, unique=True, nullable=True, index=True)
     user_id = Column(BigInteger, nullable=True, index=True)
     email = Column(String, nullable=True, index=True)
