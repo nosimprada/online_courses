@@ -68,11 +68,11 @@ async def send_start_menu_to_user(bot: Bot, user_id: int) -> None:
     is_admin = user_id == ADMIN_CHAT_ID
 
     msg_text = f"""
-        Привіт, {full_user_info.username}!
-        {'✅ Ви маєте активну підписку!' if full_user_info.is_subscribed else '❌ У вас немає активної підписки.'}
+Привіт, {full_user_info.username}!
+{'✅ Ви маєте активну підписку!' if full_user_info.is_subscribed else '❌ У вас немає активної підписки.'}
     
-        Прогрес навчання: {full_user_info.leaning_progress_procent:.2f}%
-        Дата закінчення підписки: {_format_date(full_user_info.subscription_access_to)}
+Прогрес навчання: {full_user_info.leaning_progress_procent:.2f}%
+Дата закінчення підписки: {_format_date(full_user_info.subscription_access_to)}
     """
 
     await bot.send_message(chat_id=user_id, text=msg_text, reply_markup=await start_menu_keyboard(is_admin))
