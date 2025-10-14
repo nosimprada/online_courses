@@ -67,6 +67,7 @@ async def get_user_full_info_by_tg_id(tg_id: int) -> UserReadFullInfoSchemaDB | 
     subscriptions = await get_subscriptions_by_tg_id(tg_id) or []
 
     active_subscriptions = [s for s in subscriptions if s.status == SubscriptionStatus.ACTIVE]
+    print(f"Активные подписки!!************: {active_subscriptions}")
     expired_subscription_ids = [s.id for s in subscriptions if s.status == SubscriptionStatus.EXPIRED]
 
     subscription_access_to: Optional[datetime] = max(

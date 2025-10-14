@@ -31,3 +31,13 @@ class ShortCodeDAO:
         if code:
             return ShortCodeReadSchema.model_validate(code)
         return None
+    
+    @staticmethod
+    async def get_short_code_by_code_hash(session: AsyncSession, code_hash: str) -> ShortCodeReadSchema | None:
+        result = await session.execute(
+            select(ShortCode).where(ShortCode.code_hash == code_hash)
+        )
+        code: ShortCode | None = result.scalars().first()
+        if code:
+            return ShortCodeReadSchema.model_validate(code)
+        return None

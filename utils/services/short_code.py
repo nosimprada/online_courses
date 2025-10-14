@@ -14,3 +14,7 @@ async def create_short_code(token_data: ShortCodeCreateSchema) -> ShortCodeReadS
 async def get_short_code_by_order_id(order_id: int) -> ShortCodeReadSchema | None:
     async with AsyncSessionLocal() as session:
         return await ShortCodeDAO.get_short_code_by_order_id(session, order_id)
+
+async def get_short_code_by_code_hash(code_hash: str) -> ShortCodeReadSchema | None:
+    async with AsyncSessionLocal() as session:
+        return await ShortCodeDAO.get_short_code_by_code_hash(session, code_hash)

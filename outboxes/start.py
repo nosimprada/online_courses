@@ -10,10 +10,12 @@ from utils.enums.subscription import SubscriptionStatus
 from utils.schemas.user import UserCreateSchemaDB, UserReadFullInfoSchemaDB
 from utils.services.order import get_order_by_order_id, update_user_id_by_order_id
 from utils.services.redeem_token import get_redeem_token_by_token_hash
+from utils.services.short_code import get_short_code_by_code_hash
 from utils.services.subscription import (
     get_subscription_by_order_id,
     update_subscription_access_period,
-    update_subscription_status
+    update_subscription_status,
+    update_subscription_user_id_by_subscription_id
 )
 from utils.services.user import create_user, get_user_by_tg_id, get_user_full_info_by_tg_id
 
@@ -105,6 +107,7 @@ async def registration_func(message: Message, ref_code: str | None = None):
                     if subscription and subscription.status.value == SubscriptionStatus.CREATED.value:
                         print(f"=== АКТИВИРУЕМ ПОДПИСКУ ===")
                         await update_subscription_status(subscription.id, SubscriptionStatus.ACTIVE)
+                        await update_subscription_user_id_by_subscription_id(subscription.id, message.from_user.id)
 
                         now = datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None)
 
@@ -142,3 +145,56 @@ async def registration_func(message: Message, ref_code: str | None = None):
 
 def _format_date(date: datetime) -> str:
     return date.strftime("%d.%m.%Y") if date else "N/A"
+
+
+# ...existing code...
+async def register_ref_code_handler(code: str, message: Message):
+    try:
+        short_code = await get_short_code_by_code_hash(code)
+        if not short_code:
+            await message.answer("Даний код недійсний. Спробуйте ще раз.")
+            return
+
+        order = await get_order_by_order_id(short_code.order_id)
+        if not order:
+            await message.answer("Замовлення не знайдено.")
+            return
+
+        if order.status.value != OrderStatus.COMPLETED.value:
+            print(f"=== ЗАКАЗ НЕ ЗАВЕРШЕН, СТАТУС: {order.status} ===")
+            await message.answer("Оплата ще не підтверджена. Спробуйте пізніше.")
+            return
+
+        print("=== ЗАКАЗ ЗАВЕРШЕН, ПОЛУЧАЕМ ПОДПИСКУ ===")
+        subscription = await get_subscription_by_order_id(order.order_id)
+        print(f"=== ПОДПИСКА ПОЛУЧЕНА: {subscription} ===")
+
+        if subscription and subscription.status.value == SubscriptionStatus.CREATED.value:
+            print("=== АКТИВИРУЕМ ПОДПИСКУ ===")
+            await update_subscription_status(subscription.id, SubscriptionStatus.ACTIVE)
+            await update_subscription_user_id_by_subscription_id(subscription.id, message.from_user.id)
+
+            now = datetime.now(timezone("Europe/Kyiv")).replace(tzinfo=None)
+            await update_subscription_access_period(
+                subscription.id,
+                now,
+                now + timedelta(days=90),
+            )
+            await update_user_id_by_order_id(order.order_id, message.from_user.id)
+
+            access_to = _format_date(now + timedelta(days=90))
+            await message.answer(f"Оплату отримано ✅\nДоступ відкрито до {access_to}.")
+            print(f"=== ПОДПИСКА АКТИВИРОВАНА ДЛЯ: {message.from_user.id} ДО {access_to} ===")
+
+        elif subscription and subscription.status.value == SubscriptionStatus.ACTIVE.value:
+            print(f"=== ПОЛЬЗОВАТЕЛЬ УЖЕ ИМЕЕТ АКТИВНУЮ ПОДПИСКУ: {message.from_user.id} ===")
+            await message.answer("You already have an active subscription.")
+        else:
+            print("=== ПОДПИСКА НE НАЙДЕНА ИЛИ НЕВЕРНЫЙ СТАТУС ===")
+            await message.answer("Підписку не знайдено. Зверніться до підтримки.")
+
+    except Exception as e:
+        print(f"=== ОШИБКА ПРИ ОБРАБОТКЕ РЕФЕРАЛЬНОГО КОДА: {e} ===")
+        await message.answer("Сталася помилка. Спробуйте пізніше.")
+# ...existing code...
+                        
