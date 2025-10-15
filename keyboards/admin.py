@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Any
 
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardMarkup, ReplyKeyboardBuilder
@@ -7,10 +7,10 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardMarkup, R
 from utils.auto_back import add_auto_back
 from utils.enums.subscription import SubscriptionStatus
 from utils.enums.ticket import TicketStatus
+from utils.keyboards_paginator import keyboard_with_pagination, paginate_items
 from utils.schemas.lesson import LessonReadSchemaDB
 from utils.schemas.subscription import SubscriptionReadSchemaDB
 from utils.schemas.ticket import TicketReadSchemaDB
-from utils.schemas.user import UserReadSchemaDB
 
 
 async def menu() -> ReplyKeyboardMarkup:
@@ -27,27 +27,33 @@ async def menu() -> ReplyKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True)
 
 
-async def show_users(users_with_status: List[Dict[UserReadSchemaDB, str]]) -> InlineKeyboardMarkup:
+async def show_users(
+        users_with_status: List[Dict[str, Any]],
+        page: int, page_size: int = 8
+) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    for item in users_with_status:
+    paginated = paginate_items(users_with_status, page, page_size)
+
+    for item in paginated:
         user = item["user"]
         emoji = item["emoji"]
 
         display_name = _format_user_display_name(user.tg_id, user.username)
         builder.button(text=f"{emoji} {display_name}", callback_data=f"admin:show_user_{user.tg_id}")
 
-    # await add_auto_back(builder, "admin:show_users")
-
     builder.adjust(1)
 
-    return builder.as_markup()
+    return await keyboard_with_pagination(
+        builder, page, page_size, len(users_with_status),
+        "admin:show_users"
+    )
 
 
 async def show_user_data(user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    builder.button(text="🎟️ Доступи", callback_data=f"admin:show_user_subscriptions_{user_id}")
+    builder.button(text="🎟️ Доступи", callback_data=f"admin:show_user_subscriptions_page_{user_id}_0")
 
     builder.adjust(1)
 
@@ -56,14 +62,17 @@ async def show_user_data(user_id: int) -> InlineKeyboardMarkup:
 
 async def show_user_subscriptions(
         subscriptions: List[SubscriptionReadSchemaDB],
-        user_id: int, is_null: bool
+        user_id: int, is_null: bool,
+        page: int, page_size: int = 5
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+
+    paginated = paginate_items(subscriptions, page, page_size)
 
     builder.button(text="➕ Надати доступ", callback_data=f"admin:grant_access_{user_id}")
 
     if not is_null:
-        for sub in subscriptions:
+        for sub in paginated:
             builder.button(
                 text=f"🎟️ Доступ №{sub.id}",
                 callback_data=f"admin:show_subscription_{sub.id}"
@@ -73,7 +82,10 @@ async def show_user_subscriptions(
 
     builder.adjust(1)
 
-    return builder.as_markup()
+    return await keyboard_with_pagination(
+        builder, page, page_size, len(subscriptions),
+        f"admin:show_user_subscriptions_{user_id}"
+    )
 
 
 async def show_subscription(subscription: SubscriptionReadSchemaDB) -> InlineKeyboardMarkup:

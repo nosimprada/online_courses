@@ -34,14 +34,23 @@ class UpdateLessonState(StatesGroup):
 
 # ---------------------------- Users / Orders ----------------------------
 
-@router.callback_query(F.data.startswith("admin:show_user_subscriptions_"))
+@router.callback_query(F.data.startswith("admin:show_user_subscriptions_page_"))
 async def show_user_subscriptions(callback: CallbackQuery) -> None:
-    await outbox.show_user_subscriptions(callback)
+    page = int(callback.data.split("_")[-1])
+    await outbox.show_user_subscriptions(callback, page)
 
 
 @router.message(F.text == "👥 Користувачі")
 async def show_users(message: Message) -> None:
-    await outbox.show_users(message)
+    await outbox.show_users(message, False)
+
+
+@router.callback_query(F.data.startswith("admin:show_users_page_"))
+async def show_users_page(callback: CallbackQuery) -> None:
+    page = int(callback.data.split("_")[-1])
+    await outbox.show_users(callback.message, True, page)
+
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("admin:show_user_"))

@@ -13,8 +13,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
 
-MONOPAY_TOKEN = os.getenv("MONOPAY_TOKEN")
-
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = int(os.getenv("SMTP_PORT"))
 SMTP_EMAIL = os.getenv("SMTP_EMAIL")

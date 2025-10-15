@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Final, List, Tuple, Optional, Set, Dict
+from typing import Final, List, Tuple, Optional, Set, Dict, Any
 from uuid import uuid4
 
 from aiogram.fsm.context import FSMContext
@@ -16,7 +16,6 @@ from utils.enums.ticket import TicketStatus
 from utils.schemas.lesson import LessonCreateSchemaDB, LessonUpdateSchemaDB, LessonReadSchemaDB
 from utils.schemas.order import OrderCreateSchemaDB
 from utils.schemas.subscription import SubscriptionReadSchemaDB, SubscriptionCreateSchemaDB
-from utils.schemas.user import UserReadSchemaDB
 from utils.services.lesson import (
     get_all_modules_with_lesson_count,
     get_lessons_by_module,
@@ -106,20 +105,14 @@ async def menu(message: Message) -> None:
 #     await callback.answer()
 
 
-async def show_users(message: Message) -> None:
-    # go_back = await admin_kb.go_back(callback.data)
-
+async def show_users(message: Message, edit: bool, page: int = 0) -> None:
     try:
         users = await get_all_users()
 
-        users_with_status: List[Dict[UserReadSchemaDB, str]] = []
+        users_with_status: List[Dict[str, Any]] = []
 
         for user in users:
             subs = await get_subscriptions_by_tg_id(user.tg_id)
-            print("DEBUG subs:", subs)
-
-            for s in subs:
-                print(f"ID={s.id}, status={s.status}, type={type(s.status)}")
 
             users_with_status.append({
                 "user": user,
@@ -134,11 +127,13 @@ async def show_users(message: Message) -> None:
             "⚪ — Користувач не має підписок.\n\n"
         )
 
-        await message.answer(
-            "🔧 Управління користувачами\n\n"
-            f"<tg-spoiler>{emojis_info}</tg-spoiler>",
-            reply_markup=await admin_kb.show_users(users_with_status)
-        )
+        text = f"🔧 Управління користувачами\n\n<tg-spoiler>{emojis_info}</tg-spoiler>"
+        reply_markup = await admin_kb.show_users(users_with_status, page)
+
+        if edit:
+            await message.edit_text(text, reply_markup=reply_markup)
+        else:
+            await message.answer(text, reply_markup=reply_markup)
 
     except Exception as e:
         print(f"Error showing users list: {str(e)}")
@@ -200,23 +195,23 @@ async def show_user_data(callback: CallbackQuery) -> None:
 
 # ============================ Subscriptions ============================
 
-async def show_user_subscriptions(callback: CallbackQuery) -> None:
+async def show_user_subscriptions(callback: CallbackQuery, page: int = 0) -> None:
     try:
-        tg_id = int(callback.data.split("_")[-1])
+        tg_id = int(callback.data.split("_")[-2])
 
         subscriptions = await get_subscriptions_by_tg_id(tg_id)
 
         if not subscriptions:
             await callback.message.answer(
                 "❌ Користувач не має доступів.",
-                reply_markup=await admin_kb.show_user_subscriptions(subscriptions, tg_id, True)
+                reply_markup=await admin_kb.show_user_subscriptions(subscriptions, tg_id, True, page)
             )
             await callback.answer()
             return
 
         await callback.message.answer(
             f"🎟️ <b>Кількість доступів користувача:</b> <code>{len(subscriptions)}</code> <b>(TG {tg_id})</b>",
-            reply_markup=await admin_kb.show_user_subscriptions(subscriptions, tg_id, False)
+            reply_markup=await admin_kb.show_user_subscriptions(subscriptions, tg_id, False, page)
         )
 
     except Exception as e:
