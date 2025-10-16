@@ -209,13 +209,13 @@ async def show_user_subscriptions(callback: CallbackQuery, page: int = 0) -> Non
             await callback.answer()
             return
 
-        await callback.message.answer(
+        await callback.message.edit_text(
             f"🎟️ <b>Кількість доступів користувача:</b> <code>{len(subscriptions)}</code> <b>(TG {tg_id})</b>",
             reply_markup=await admin_kb.show_user_subscriptions(subscriptions, tg_id, False, page)
         )
 
     except Exception as e:
-        print(f"Error showing user subscriptions: {str(e)}")
+        print(f"Error showing user subscriptions for admin: {str(e)}")
         await callback.message.answer(ERROR_MESSAGE, reply_markup=await admin_kb.go_back(callback.data))
 
     await callback.answer()
@@ -352,7 +352,7 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
         await message.answer(
             f"✅ Доступ успішно надано користувачу (TG {tg_id}) на {months} міс.\n"
             f"📅 Доступ до: {_format_date(access_to)}",
-            reply_markup=await admin_kb.go_back(f"admin:show_user_subscriptions_{tg_id}")
+            reply_markup=await admin_kb.go_back(f"admin:show_user_subscriptions_page_{tg_id}_0")
         )
 
         # await message.bot.send_message(
@@ -694,20 +694,30 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
 
 # ============================ Tickets ============================
 
-async def tickets_menu(message: Message) -> None:
+async def tickets_menu(message: Message, edit: bool, page: int = 0) -> None:
     try:
         open_tickets = await get_open_tickets() or []
         pending_tickets = await get_pending_tickets() or []
-        closed_tickets = await get_closed_tickets()
+        closed_tickets = await get_closed_tickets() or []
 
-        sorted_tickets = open_tickets + pending_tickets + closed_tickets
+        sorted_tickets = open_tickets + pending_tickets
 
-        await message.answer(
+        text = (
             f"✅ <b>Кількість відкритих тикетів:</b> <code>{len(open_tickets)}</code>\n"
             f"⏳ <b>Кількість тикетiв, що очікують на відповідь:</b> <code>{len(pending_tickets)}</code>\n"
-            f"❌ <b>Кількість закритих тикетiв:</b> <code>{len(closed_tickets)}</code>",
-            reply_markup=await admin_kb.tickets_menu(sorted_tickets)
+            f"❌ <b>Кількість закритих тикетiв:</b> <code>{len(closed_tickets)}</code>"
         )
+
+        reply_markup = await admin_kb.tickets_menu(sorted_tickets, page)
+
+        if edit:
+            await message.edit_text(text, reply_markup=reply_markup)
+        else:
+            await message.answer(text, reply_markup=reply_markup)
+
+        edit_reply = await message.answer("Меняю клавиатуру...", reply_markup=await admin_kb.menu())
+        await edit_reply.delete()
+
 
     except Exception as e:
         print(f"Error showing tickets menu for admin: {str(e)}")

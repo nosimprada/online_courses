@@ -81,11 +81,6 @@ async def input_grant_access(message: Message, state: FSMContext) -> None:
     await outbox.input_grant_access(message, state)
 
 
-@router.callback_query(F.data.startswith("admin:show_user_subscriptions_"))
-async def show_user_subscriptions(callback: CallbackQuery) -> None:
-    await outbox.show_user_subscriptions(callback)
-
-
 @router.callback_query(F.data.startswith("admin:show_subscription_"))
 async def show_user_subscription(callback: CallbackQuery) -> None:
     await outbox.show_user_subscription(callback)
@@ -220,7 +215,15 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
 
 @router.message(F.text == "❓ Тикетi")
 async def show_tickets(message: Message) -> None:
-    await outbox.tickets_menu(message)
+    await outbox.tickets_menu(message, False, 0)
+
+
+@router.callback_query(F.data.startswith("admin:tickets_menu_page_"))
+async def show_tickets_page(callback: CallbackQuery) -> None:
+    page = int(callback.data.split("_")[-1])
+    await outbox.tickets_menu(callback.message, True, page)
+
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("admin:ticket_"))

@@ -1,13 +1,13 @@
 from datetime import datetime
 from typing import List, Tuple, Dict, Any
 
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardRemove
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardMarkup, ReplyKeyboardBuilder
 
 from utils.auto_back import add_auto_back
 from utils.enums.subscription import SubscriptionStatus
 from utils.enums.ticket import TicketStatus
-from utils.keyboards_paginator import keyboard_with_pagination, paginate_items
+from utils.keyboards_paginator import paginate_items, add_keyboard_pagination
 from utils.schemas.lesson import LessonReadSchemaDB
 from utils.schemas.subscription import SubscriptionReadSchemaDB
 from utils.schemas.ticket import TicketReadSchemaDB
@@ -42,12 +42,14 @@ async def show_users(
         display_name = _format_user_display_name(user.tg_id, user.username)
         builder.button(text=f"{emoji} {display_name}", callback_data=f"admin:show_user_{user.tg_id}")
 
+    await add_keyboard_pagination(
+        builder, page, page_size, len(users_with_status),
+        f"admin:show_users_page_"
+    )
+
     builder.adjust(1)
 
-    return await keyboard_with_pagination(
-        builder, page, page_size, len(users_with_status),
-        "admin:show_users"
-    )
+    return builder.as_markup()
 
 
 async def show_user_data(user_id: int) -> InlineKeyboardMarkup:
@@ -78,14 +80,18 @@ async def show_user_subscriptions(
                 callback_data=f"admin:show_subscription_{sub.id}"
             )
 
-    await add_auto_back(builder, f"admin:show_user_subscriptions_{user_id}")
+    callback_data = f"admin:show_user_subscriptions_page_{user_id}_"
+
+    await add_keyboard_pagination(
+        builder, page, page_size, len(subscriptions),
+        callback_data
+    )
+
+    await add_auto_back(builder, f"{callback_data}{page}")
 
     builder.adjust(1)
 
-    return await keyboard_with_pagination(
-        builder, page, page_size, len(subscriptions),
-        f"admin:show_user_subscriptions_{user_id}"
-    )
+    return builder.as_markup()
 
 
 async def show_subscription(subscription: SubscriptionReadSchemaDB) -> InlineKeyboardMarkup:
@@ -170,10 +176,12 @@ async def delete_module_lesson(module_number: int, lesson_number: int) -> Inline
     return builder.as_markup()
 
 
-async def tickets_menu(tickets: List[TicketReadSchemaDB]) -> InlineKeyboardMarkup:
+async def tickets_menu(tickets: List[TicketReadSchemaDB], page: int, page_size: int = 8) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    for ticket in tickets:
+    paginated = paginate_items(tickets, page, page_size)
+
+    for ticket in paginated:
         status_emoji: str = {
             TicketStatus.OPEN: "✅",
             TicketStatus.PENDING: "⏳",
@@ -182,7 +190,14 @@ async def tickets_menu(tickets: List[TicketReadSchemaDB]) -> InlineKeyboardMarku
 
         builder.button(text=f"{status_emoji} | ID: {ticket.id}", callback_data=f"admin:ticket_{ticket.id}")
 
+    ReplyKeyboardRemove()
+
     builder.adjust(1)
+
+    await add_keyboard_pagination(
+        builder, page, page_size, len(tickets),
+        "admin:tickets_menu_page_"
+    )
 
     return builder.as_markup()
 

@@ -1,3 +1,6 @@
+import importlib
+import pkgutil
+import sys
 from logging.config import fileConfig
 
 from alembic import context
@@ -11,6 +14,12 @@ import os
 from utils.database import Base
 
 # Импортируем ВСЕ модели, чтобы Alembic их увидел
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+models_path = os.path.join(os.path.dirname(__file__), "..", "utils", "models")
+
+package_name = "utils.models"
+for _, module_name, _ in pkgutil.iter_modules([models_path]):
+    importlib.import_module(f"{package_name}.{module_name}")
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

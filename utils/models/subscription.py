@@ -21,7 +21,7 @@ class Subscription(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(BigInteger, nullable=True, index=True)
-    order_id = Column(Integer, ForeignKey("orders.order_id"), nullable=False, index=True)
+    order_id = Column(BigInteger, ForeignKey("orders.order_id"), nullable=False, index=True)
     access_from = Column(DateTime, nullable=True)
     access_to = Column(DateTime, nullable=True)
     status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.CREATED)
