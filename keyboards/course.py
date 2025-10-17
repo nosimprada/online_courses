@@ -59,7 +59,10 @@ async def show_module_lesson(lesson: LessonReadSchemaDB, total_lessons: int) -> 
 
     await add_auto_back(builder, f"course:module_lesson_{lesson.module_number}_{lesson.lesson_number}")
 
-    builder.adjust(1, len(nav_buttons), 1)
+    if len(list(builder.buttons)) > 0:
+        builder.adjust(1)
+    else:
+        builder.adjust(1, len(nav_buttons), 1)
 
     return builder.as_markup()
 

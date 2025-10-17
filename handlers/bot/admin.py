@@ -213,7 +213,7 @@ async def delete_module_lesson(callback: CallbackQuery) -> None:
 # ---------------------------- Tickets -------------------------
 
 
-@router.message(F.text == "❓ Тикетi")
+@router.message(F.text == "❓ Тiкети")
 async def show_tickets(message: Message) -> None:
     await outbox.tickets_menu(message, False, 0)
 

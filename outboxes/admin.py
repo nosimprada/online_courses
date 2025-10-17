@@ -703,9 +703,9 @@ async def tickets_menu(message: Message, edit: bool, page: int = 0) -> None:
         sorted_tickets = open_tickets + pending_tickets
 
         text = (
-            f"✅ <b>Кількість відкритих тикетів:</b> <code>{len(open_tickets)}</code>\n"
-            f"⏳ <b>Кількість тикетiв, що очікують на відповідь:</b> <code>{len(pending_tickets)}</code>\n"
-            f"❌ <b>Кількість закритих тикетiв:</b> <code>{len(closed_tickets)}</code>"
+            f"✅ <b>Кількість відкритих тiкетив:</b> <code>{len(open_tickets)}</code>\n"
+            f"⏳ <b>Кількість тiкетив, що очікують на відповідь:</b> <code>{len(pending_tickets)}</code>\n"
+            f"❌ <b>Кількість закритих тiкетив:</b> <code>{len(closed_tickets)}</code>"
         )
 
         reply_markup = await admin_kb.tickets_menu(sorted_tickets, page)
@@ -714,9 +714,6 @@ async def tickets_menu(message: Message, edit: bool, page: int = 0) -> None:
             await message.edit_text(text, reply_markup=reply_markup)
         else:
             await message.answer(text, reply_markup=reply_markup)
-
-        edit_reply = await message.answer("Меняю клавиатуру...", reply_markup=await admin_kb.menu())
-        await edit_reply.delete()
 
 
     except Exception as e:

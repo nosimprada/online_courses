@@ -9,6 +9,7 @@ from aiogram.types import CallbackQuery, Message, InputMediaPhoto
 
 import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
+from keyboards.start import start_menu_keyboard
 from outboxes.admin import tickets_menu as admin_tickets_menu
 from utils.enums.ticket import TicketStatus
 from utils.schemas.ticket import TicketCreateSchemaDB, TicketReadSchemaDB
@@ -24,12 +25,12 @@ class HelpStates(StatesGroup):
 
 
 class HasOpenTicket(Filter):
-    async def __call__(self, message: Message) -> bool:
+    async def __call__(self, message: Message, state: FSMContext) -> bool:
         tickets = await get_tickets_by_user_id(message.from_user.id)
         ticket = await _find_open_ticket(tickets)
 
         if ticket:
-            message.ticket = ticket
+            await state.update_data(open_ticket_id=ticket.id)
             return True
 
         return False
@@ -43,8 +44,7 @@ async def start_help_request(message: Message, state: FSMContext) -> None:
         if ticket.status != TicketStatus.CLOSED:
             await message.answer(
                 f"❌ У вас вже є активне звернення №{ticket.id}. "
-                "Будь ласка, дочекайтеся відповіді служби підтримки.",
-                reply_markup=await help_kb.back_to_menu()
+                "Будь ласка, дочекайтеся відповіді служби підтримки."
             )
             return
 
@@ -54,7 +54,10 @@ async def start_help_request(message: Message, state: FSMContext) -> None:
 
 @router.message(F.text == "❌ Скасувати звернення", StateFilter(HelpStates.topic, HelpStates.message))
 async def cancel_help_request(message: Message, state: FSMContext) -> None:
-    await message.answer("❌ Запит до технічної підтримки скасовано.", reply_markup=await help_kb.back_to_menu())
+    await message.answer(
+        "❌ Запит до технічної підтримки скасовано.",
+        reply_markup=await start_menu_keyboard()
+    )
     await state.clear()
 
 
@@ -99,7 +102,7 @@ async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) ->
 
     await callback.message.answer(
         f"💬 Ви відповідаєте на звернення №{ticket_id} користувачеві {user_id}.\n"
-        "❌ Для скасування відправлення відповіді натисніть кнопку переходу до тикетiв.\n\n"
+        "❌ Для скасування відправлення відповіді натисніть кнопку переходу до тiкетив.\n\n"
         "📝 Введіть вашу відповідь:",
         reply_markup=await help_kb.admin_back_to_tickets()
     )
@@ -110,9 +113,9 @@ async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) ->
 
 @router.message(F.text, StateFilter(HelpStates.admin_responding))
 async def admin_send_response(message: Message, state: FSMContext) -> None:
-    if message.text == "❓ Тикетi":
+    if message.text == "❓ Тiкети":
         await state.clear()
-        await admin_tickets_menu(message)
+        await admin_tickets_menu(message, False)
         return
 
     data = await state.get_data()
@@ -130,7 +133,7 @@ async def admin_send_response(message: Message, state: FSMContext) -> None:
 
         await message.answer(
             f"✅ Відповідь по зверненню №{ticket_id} відправлена користувачу.\n"
-            "Тепер ви можете продовжувати спілкування до закриття тикету.",
+            "Тепер ви можете продовжувати спілкування до закриття тiкету.",
             reply_markup=await help_kb.admin_back_to_tickets()
         )
 
@@ -154,8 +157,7 @@ async def admin_close_ticket(callback: CallbackQuery) -> None:
         await callback.bot.send_message(
             user_id,
             f"✅ Ваше звернення №{ticket_id} закрито адміністратором. "
-            f"Якщо у вас виникнуть нові питання, звертайтеся знову!",
-            reply_markup=await help_kb.back_to_menu(),
+            f"Якщо у вас виникнуть нові питання, звертайтеся знову!"
         )
 
         await callback.message.answer(
@@ -173,10 +175,13 @@ async def admin_close_ticket(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.message(HasOpenTicket())
-async def user_respond_to_ticket(message: Message) -> None:
+@router.message(HasOpenTicket(), F.text)
+async def user_respond_to_ticket(message: Message, state: FSMContext) -> None:
     try:
-        ticket = message.ticket
+        data = await state.get_data()
+        ticket_id = data.get("open_ticket_id")
+
+        ticket = await get_ticket_by_id(ticket_id)
 
         user = message.from_user
         username = f"@{user.username}" if user.username else "Без Username"
@@ -201,9 +206,12 @@ async def user_respond_to_ticket(message: Message) -> None:
 
 
 @router.message(HasOpenTicket(), F.photo)
-async def user_respond_to_ticket_with_photo(message: Message) -> None:
+async def user_respond_to_ticket_with_photo(message: Message, state: FSMContext) -> None:
     try:
-        ticket = message.ticket
+        data = await state.get_data()
+        ticket_id = data.get("open_ticket_id")
+
+        ticket = await get_ticket_by_id(ticket_id)
 
         user = message.from_user
         username = f"@{user.username}" if user.username else "Без Username"
@@ -224,16 +232,12 @@ async def user_respond_to_ticket_with_photo(message: Message) -> None:
             reply_markup=await help_kb.admin_choose_ticket_action(message.from_user.id, ticket.id)
         )
 
-        await message.answer(
-            "✅ Ваше повідомлення відправлено адміністратору.",
-            reply_markup=await help_kb.back_to_menu()
-        )
+        await message.answer("✅ Ваше повідомлення відправлено адміністратору.")
 
     except Exception as e:
         print(f"Error sending user response with photo to admin: {e}")
         await message.answer(
-            "❌ Не вдалося відправити повідомлення адміністратору.",
-            reply_markup=await help_kb.back_to_menu()
+            "❌ Не вдалося відправити повідомлення адміністратору."
         )
 
 
@@ -300,15 +304,13 @@ async def _process_help_message(message: Message, state: FSMContext, message_tex
             f"✅ Звернення №{ticket.id} отримано.\n"
             "⏳ Дочекайтеся відповіді від адміністратора.\n"
             "Після першої відповіді ви зможете продовжити спілкування.\n\n"
-            "🕐 Відповімо протягом 24 годин (10:00–18:00 за Києвом)",
-            reply_markup=await help_kb.back_to_menu()
+            "🕐 Відповімо протягом 24 годин (10:00–18:00 за Києвом)"
         )
 
     except Exception as e:
         print(f"Error sending help ticket message to admin: {e}")
         await message.answer(
-            "❌ Виникла помилка при відправці звернення. Спробуйте пізніше.",
-            reply_markup=await help_kb.back_to_menu()
+            "❌ Виникла помилка при відправці звернення. Спробуйте пізніше."
         )
 
     await state.clear()

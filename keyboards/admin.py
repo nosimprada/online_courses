@@ -18,7 +18,7 @@ async def menu() -> ReplyKeyboardMarkup:
 
     builder.button(text="👥 Користувачі")
     builder.button(text="📖 Управління курсами")
-    builder.button(text="❓ Тикетi")
+    builder.button(text="❓ Тiкети")
 
     builder.button(text="🔁 На головну")
 
@@ -199,6 +199,8 @@ async def tickets_menu(tickets: List[TicketReadSchemaDB], page: int, page_size: 
         "admin:tickets_menu_page_"
     )
 
+    await add_auto_back(builder, f"admin:tickets_menu")
+
     return builder.as_markup()
 
 
@@ -206,7 +208,7 @@ async def ticket_menu(ticket_id: int, user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
     builder.button(text="💬 Відповісти", callback_data=f"help:admin_respond_{ticket_id}_{user_id}")
-    builder.button(text="❌ Закрити тикет", callback_data=f"help:admin_close_{ticket_id}_{user_id}")
+    builder.button(text="❌ Закрити тiкет", callback_data=f"help:admin_close_{ticket_id}_{user_id}")
 
     builder.adjust(1)
 

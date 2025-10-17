@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from api.routes import orders
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, SERVER_PORT
 from handlers import routers
+from utils.notifications.notificator import setup as setup_notifications_scheduler
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -59,6 +60,8 @@ async def main() -> None:
         allowed_updates=dp.resolve_used_update_types(),
         drop_pending_updates=True
     )
+
+    setup_notifications_scheduler(bot)
 
     logging.info(f"Webhook set to {WEBHOOK_URL}.")
 
