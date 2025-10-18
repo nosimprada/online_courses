@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Dict
 
 from aiogram import Bot
@@ -16,6 +16,8 @@ MESSAGES: Dict[str, str] = {
     "expired": "⛔ Дні доступу до курсу закінчилися.\nМожна продовжити ще на 90 днів?",
     "maybe_extend": "ℹ️ Вже минув тиждень з моменту закінчення доступу.\nБажаєте продовжити?"
 }
+
+CHECK_AT: time = time(hour=9, minute=0, tzinfo=timezone("Europe/Kyiv"))
 
 
 def setup(bot: Bot) -> None:
@@ -70,7 +72,7 @@ def setup(bot: Bot) -> None:
         except Exception as e:
             print(f"Scheduler: Error in check_users: {e}")
 
-    scheduler.add_job(check_users, trigger="cron", second=5)
+    scheduler.add_job(check_users, trigger="cron", hour=CHECK_AT.hour, minute=CHECK_AT.minute)
     scheduler.start()
 
 
