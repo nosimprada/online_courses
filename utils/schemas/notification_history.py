@@ -3,16 +3,15 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
-class LearningProgressCreateSchemaDB(BaseModel):
+class NotificationHistoryCreateSchemaDB(BaseModel):
     user_id: int
-    lesson_id: int
+    days_diff: int
 
 
-class LearningProgressReadSchemaDB(BaseModel):
+class NotificationHistoryReadSchemaDB(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     user_id: int
-    lesson_id: int
-    progress: int
-    created_at: datetime
+    days_diff: int
+    sent_at: datetime

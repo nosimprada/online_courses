@@ -157,7 +157,7 @@ async def show_user_data(callback: CallbackQuery) -> None:
 
         is_sub_text = "✅ Так" if getattr(user, "is_subscribed", False) else "❌ Ні"
         access_to_text = _format_date(getattr(user, "subscription_access_to", None))
-        progress_text = f"{getattr(user, 'leaning_progress_procent', 0.0):.2f}%"
+        # progress_text = f"{getattr(user, 'leaning_progress_procent', 0.0):.2f}%"
 
         emails_list = getattr(user, "emails", []) or []
         emails_text = ", ".join(emails_list) if emails_list else "—"
@@ -177,7 +177,7 @@ async def show_user_data(callback: CallbackQuery) -> None:
             f"📅 <b>Створено:</b> <code>{created_at_text}</code>\n\n"
             f"🎟️ <b>Активна підписка:</b> {is_sub_text}\n"
             f"📆 <b>Доступ до:</b> <code>{access_to_text}</code>\n"
-            f"📈 <b>Прогрес навчання:</b> {progress_text}\n"
+            # f"📈 <b>Прогрес навчання:</b> {progress_text}\n"
             f"✉️ <b>Emails:</b> {emails_text}\n"
             f"✅ <b>Завершені замовлення (IDs):</b> {completed_orders_text}\n"
             f"⌛ <b>Протерміновані підписки (IDs):</b> {expired_subs_text}\n\n"

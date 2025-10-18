@@ -43,13 +43,7 @@ async def start_menu(message: Message | CallbackQuery):
 
     is_admin = message.from_user.id == ADMIN_CHAT_ID
 
-    msg_text = f"""
-Привіт, {full_user_info.username}!
-{'✅ Ви маєте активну підписку!' if full_user_info.is_subscribed else '❌ У вас немає активної підписки.'}
-
-Прогрес навчання: {full_user_info.leaning_progress_procent:.2f}%
-Дата закінчення підписки: {_format_date(full_user_info.subscription_access_to)}
-"""
+    msg_text = _start_text(full_user_info)
 
     if isinstance(message, Message):
         await message.answer(msg_text, reply_markup=await start_menu_keyboard(is_admin))
@@ -67,15 +61,11 @@ async def send_start_menu_to_user(bot: Bot, user_id: int) -> None:
 
     is_admin = user_id == ADMIN_CHAT_ID
 
-    msg_text = f"""
-Привіт, {full_user_info.username}!
-{'✅ Ви маєте активну підписку!' if full_user_info.is_subscribed else '❌ У вас немає активної підписки.'}
-    
-Прогрес навчання: {full_user_info.leaning_progress_procent:.2f}%
-Дата закінчення підписки: {_format_date(full_user_info.subscription_access_to)}
-    """
-
-    await bot.send_message(chat_id=user_id, text=msg_text, reply_markup=await start_menu_keyboard(is_admin))
+    await bot.send_message(
+        user_id,
+        _start_text(full_user_info),
+        reply_markup=await start_menu_keyboard(is_admin)
+    )
 
 
 async def registration_func(message: Message, ref_code: str | None = None):
@@ -157,6 +147,17 @@ async def registration_func(message: Message, ref_code: str | None = None):
 
 def _format_date(date: datetime) -> str:
     return date.strftime("%d.%m.%Y") if date else "N/A"
+
+
+def _start_text(user: UserReadFullInfoSchemaDB) -> str:
+    # Прогрес навчання: {user.leaning_progress_procent:.2f}%
+    msg_text = f"""
+Привіт, {user.username}!
+{"✅ Ви маєте активну підписку!" if user.is_subscribed else "❌ У вас немає активної підписки."}
+Дата закінчення підписки: {_format_date(user.subscription_access_to)}
+    """
+
+    return msg_text
 
 
 # ...existing code...

@@ -1,11 +1,13 @@
 from datetime import date, datetime
-from typing import Dict, List
+from typing import Dict
 
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pytz import timezone
 
-import utils.notifications.keyboards as kb
+import keyboards.notification as kb
+from utils.schemas.notification_history import NotificationHistoryCreateSchemaDB
+from utils.services.notification_history import has_notification_been_sent, save_notification_history
 from utils.services.subscription import get_all_active_subscriptions
 
 MESSAGES: Dict[str, str] = {
@@ -22,42 +24,48 @@ def setup(bot: Bot) -> None:
     async def check_users():
         try:
             subscriptions = await get_all_active_subscriptions()
-            sent_for_users: Dict[int, List[int]] = {}
 
             for sub in subscriptions:
-                user_id = sub.user_id
-
-                if user_id not in sent_for_users:
-                    sent_for_users[user_id] = []
-
                 days_diff = _days_diff(sub.access_from)
 
-                if days_diff in [75, 85] and days_diff not in sent_for_users[user_id]:
+                if await has_notification_been_sent(sub.user_id, days_diff):
+                    continue
+
+                if days_diff in [75, 85]:
                     await bot.send_message(
-                        user_id,
+                        sub.user_id,
                         MESSAGES["will_expire"].format(in_days=90 - days_diff, date=_format_date(sub.access_to.date())),
                         reply_markup=await kb.extend_subscription()
                     )
 
-                    sent_for_users[user_id].append(days_diff)
+                    await save_notification_history(NotificationHistoryCreateSchemaDB(
+                        user_id=sub.user_id,
+                        days_diff=days_diff
+                    ))
 
-                elif days_diff == 90 and 90 not in sent_for_users[user_id]:
+                elif days_diff == 90:
                     await bot.send_message(
-                        user_id,
+                        sub.user_id,
                         MESSAGES["expired"],
                         reply_markup=await kb.extend_subscription()
                     )
 
-                    sent_for_users[user_id].append(90)
+                    await save_notification_history(NotificationHistoryCreateSchemaDB(
+                        user_id=sub.user_id,
+                        days_diff=days_diff
+                    ))
 
-                elif days_diff == 97 and 97 not in sent_for_users[user_id]:
+                elif days_diff == 97:
                     await bot.send_message(
-                        user_id,
+                        sub.user_id,
                         MESSAGES["maybe_extend"],
                         reply_markup=await kb.extend_subscription()
                     )
 
-                    sent_for_users[user_id].append(97)
+                    await save_notification_history(NotificationHistoryCreateSchemaDB(
+                        user_id=sub.user_id,
+                        days_diff=days_diff
+                    ))
 
         except Exception as e:
             print(f"Scheduler: Error in check_users: {e}")
