@@ -4,6 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardMarkup
 
 from utils.auto_back import add_auto_back
 from utils.schemas.lesson import LessonReadSchemaDB
+from utils.services.lesson import get_last_lesson_of_module
 
 
 async def menu(modules: List[Tuple[int, int]]) -> InlineKeyboardMarkup:
@@ -34,7 +35,7 @@ async def show_module(lessons: List[LessonReadSchemaDB]) -> None:
     return builder.as_markup()
 
 
-async def show_module_lesson(lesson: LessonReadSchemaDB, total_lessons: int) -> None:
+async def show_module_lesson(lesson: LessonReadSchemaDB, total_lessons: int, total_modules: int) -> None:
     builder = InlineKeyboardBuilder()
 
     if lesson.pdf_file_id:
@@ -43,15 +44,28 @@ async def show_module_lesson(lesson: LessonReadSchemaDB, total_lessons: int) -> 
             callback_data=f"course:show_pdf_{lesson.module_number}_{lesson.lesson_number}"
         )
 
+    last_lesson = await get_last_lesson_of_module(lesson.module_number - 1)
+
     nav_buttons = []
+
     if lesson.lesson_number > 1:
         nav_buttons.append((
             "⬅️", f"course:module_lesson_{lesson.module_number}_{lesson.lesson_number - 1}"
         ))
 
+    elif lesson.module_number > 1:
+        nav_buttons.append((
+            "⬅️ Модуль", f"course:module_lesson_{lesson.module_number - 1}_{last_lesson}"
+        ))
+
     if lesson.lesson_number < total_lessons:
         nav_buttons.append((
             "➡️", f"course:module_lesson_{lesson.module_number}_{lesson.lesson_number + 1}"
+        ))
+
+    elif lesson.module_number < total_modules:
+        nav_buttons.append((
+            "Модуль ➡️", f"course:module_lesson_{lesson.module_number + 1}_1"
         ))
 
     for text, callback in nav_buttons:

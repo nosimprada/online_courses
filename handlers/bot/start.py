@@ -1,16 +1,17 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart
+from aiogram.filters import StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery
 
 from config import ADMIN_CHAT_ID
 from outboxes.admin import menu as admin_menu
 from outboxes.start import registration_func, start_menu
 from utils.services.user import get_user_by_tg_id
-from aiogram.filters import StateFilter
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
 
 router = Router()
+
 
 # ---------------------------- FSM States ----------------------------
 
@@ -38,11 +39,13 @@ async def start_command_handler(message: Message, state: FSMContext):
             print('Сработала регистрация')
 
         else:
-            await message.answer("Активних підписок немає. Введіть будь ласка код, який був надісланий вам на електронну пошту.")
+            await message.answer(
+                "Активних підписок немає. Введіть будь ласка код, який був надісланий вам на електронну пошту.")
             await state.set_state(RefCode.get_ref_code)
-            
+
     else:
         await start_menu(message)
+
 
 @router.message(StateFilter(RefCode.get_ref_code))
 async def process_ref_code(message: Message, state: FSMContext):

@@ -109,3 +109,12 @@ class LessonDAO:
 
         lessons = result.scalars().all()
         return [LessonReadSchemaDB.model_validate(lesson) for lesson in lessons]
+
+    @staticmethod
+    async def get_last_lesson_of_module(session: AsyncSession, module_number: int) -> int:
+        result = await session.execute(
+            select([func.max(Lesson.lesson_no)])
+            .where(Lesson.module_no == module_number)
+        )
+
+        return result.scalar() or 1

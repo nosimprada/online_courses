@@ -43,3 +43,8 @@ async def get_lessons_by_module(module_number: int) -> List[LessonReadSchemaDB]:
 async def get_lesson_by_module_and_lesson_number(module: int, lesson) -> LessonReadSchemaDB | None:
     async with AsyncSessionLocal() as session:
         return await LessonDAO.get_by_module_and_lesson_number(session, module, lesson)
+
+
+async def get_last_lesson_of_module(module_number: int) -> int:
+    async with AsyncSessionLocal() as session:
+        return await LessonDAO.get_last_lesson_of_module(session, module_number)
