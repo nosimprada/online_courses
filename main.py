@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from api.routes import orders
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, SERVER_PORT
 from handlers import routers
+from utils.email import send_course_access_email
 from utils.notificator import setup as setup_notifications_scheduler
 
 logging.basicConfig(level=logging.DEBUG)
@@ -64,6 +65,18 @@ async def main() -> None:
     setup_notifications_scheduler(bot)
 
     logging.info(f"Webhook set to {WEBHOOK_URL}.")
+    # logging.info("Sending test email...")
+    # success, error = await send_course_access_email(
+    #     to="avd.bots.project@gmail.com",
+    #     access_code="123456",
+    #     bot_link="https://t.me/lagidna_disciplinabot"
+    # )
+    
+    # if success:
+    #     logging.info("Test email sent successfully!")
+    # else:
+    #     logging.error(f"Failed to send test email: {error}")
+
 
     # Запускаем FastAPI сервер
     config = uvicorn.Config(app, host="0.0.0.0", port=SERVER_PORT)
