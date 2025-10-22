@@ -155,8 +155,8 @@ async def admin_close_ticket(callback: CallbackQuery) -> None:
 
         await callback.bot.send_message(
             user_id,
-            f"✅ Ваше звернення №{ticket_id} закрито адміністратором. "
-            f"Якщо у вас виникнуть нові питання, звертайтеся знову!",
+            f"✅ Ваше звернення №{ticket_id} закрито адміністратором.\n"
+            "Якщо у вас виникнуть нові питання, звертайтеся знову!",
             reply_markup=await start_menu_keyboard()
         )
 
