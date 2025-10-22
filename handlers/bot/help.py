@@ -5,7 +5,7 @@ from aiogram.filters import Filter
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import CallbackQuery, Message, InputMediaPhoto
+from aiogram.types import CallbackQuery, Message, InputMediaPhoto, PhotoSize
 
 import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
@@ -56,7 +56,7 @@ async def start_help_request(message: Message, state: FSMContext) -> None:
 async def cancel_help_request(message: Message, state: FSMContext) -> None:
     await message.answer(
         "❌ Запит до технічної підтримки скасовано.",
-        reply_markup=await start_menu_keyboard()
+        reply_markup=await start_menu_keyboard(message.from_user.id == ADMIN_CHAT_ID)
     )
     await state.clear()
 
@@ -81,13 +81,12 @@ async def write_help_message_text(message: Message, state: FSMContext) -> None:
 @router.message(F.photo, StateFilter(HelpStates.message))
 async def write_help_message_photo(message: Message, state: FSMContext) -> None:
     caption = message.caption if message.caption else "Без опису"
-    await _process_help_message(message, state, message_text=caption, photos=message.photo)
+    await _process_help_message(message, state, message_text=caption, photos=_get_unique_photos(message.photo))
 
 
 @router.callback_query(F.data.startswith("help:admin_respond_"))
 async def admin_respond_to_ticket(callback: CallbackQuery, state: FSMContext) -> None:
     ticket_id, user_id = _get_ntl_last_data(callback)
-
     ticket = await get_ticket_by_id(ticket_id)
 
     if ticket.status == TicketStatus.CLOSED:
@@ -157,7 +156,8 @@ async def admin_close_ticket(callback: CallbackQuery) -> None:
         await callback.bot.send_message(
             user_id,
             f"✅ Ваше звернення №{ticket_id} закрито адміністратором. "
-            f"Якщо у вас виникнуть нові питання, звертайтеся знову!"
+            f"Якщо у вас виникнуть нові питання, звертайтеся знову!",
+            reply_markup=await start_menu_keyboard()
         )
 
         await callback.message.answer(
@@ -188,14 +188,14 @@ async def user_respond_to_ticket(message: Message, state: FSMContext) -> None:
 
         support_message = (
             f"💬 <b>Нове повідомлення по зверненню №{ticket.id}</b>\n\n"
-            f"🆔 <b>User ID:</b> <code>{message.from_user.id}</code>\n"
+            f"🆔 <b>User ID:</b> <code>{user.id}</code>\n"
             f"👤 <b>Username:</b> {username}\n\n"
             f"💬 <b>Повідомлення:</b>\n{message.text}"
         )
 
         await message.bot.send_message(
             ADMIN_CHAT_ID, support_message,
-            reply_markup=await help_kb.admin_choose_ticket_action(message.from_user.id, ticket.id)
+            reply_markup=await help_kb.admin_choose_ticket_action(user.id, ticket.id)
         )
 
         await message.answer("✅ Ваше повідомлення відправлено адміністратору.")
@@ -225,20 +225,44 @@ async def user_respond_to_ticket_with_photo(message: Message, state: FSMContext)
             f"💬 <b>Повідомлення:</b>\n{caption}"
         )
 
-        await message.bot.send_photo(
-            chat_id=ADMIN_CHAT_ID,
-            photo=message.photo[-1].file_id,
-            caption=support_message,
-            reply_markup=await help_kb.admin_choose_ticket_action(message.from_user.id, ticket.id)
-        )
+        unique_photos = _get_unique_photos(message.photo)
+
+        if len(unique_photos) == 1:
+            await message.bot.send_photo(
+                chat_id=ADMIN_CHAT_ID,
+                photo=unique_photos[0].file_id,
+                caption=support_message,
+                reply_markup=await help_kb.admin_choose_ticket_action(message.from_user.id, ticket.id)
+            )
+
+        else:
+            media_group: List[InputMediaPhoto] = []
+
+            for idx, photo in enumerate(unique_photos):
+                if idx == 0:
+                    media_group.append(InputMediaPhoto(
+                        media=photo.file_id,
+                        caption=support_message
+                    ))
+                else:
+                    media_group.append(InputMediaPhoto(media=photo.file_id))
+
+            await message.bot.send_media_group(
+                chat_id=ADMIN_CHAT_ID,
+                media=media_group
+            )
+
+            await message.bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text="🔧 Оберіть дію:",
+                reply_markup=await help_kb.admin_choose_ticket_action(message.from_user.id, ticket.id)
+            )
 
         await message.answer("✅ Ваше повідомлення відправлено адміністратору.")
 
     except Exception as e:
         print(f"Error sending user response with photo to admin: {e}")
-        await message.answer(
-            "❌ Не вдалося відправити повідомлення адміністратору."
-        )
+        await message.answer("❌ Не вдалося відправити повідомлення адміністратору.")
 
 
 async def _find_open_ticket(tickets: List[TicketReadSchemaDB]) -> Optional[TicketReadSchemaDB]:
@@ -247,12 +271,17 @@ async def _find_open_ticket(tickets: List[TicketReadSchemaDB]) -> Optional[Ticke
 
 async def _process_help_message(message: Message, state: FSMContext, message_text: str, photos=None) -> None:
     data = await state.get_data()
-    selected_topic = data.get("selected_topic")
+    selected_topic = data.get("selected_topic", "Без теми")
 
     user = message.from_user
     username = f"@{user.username}" if user.username else "Без Username"
 
-    attachment_files = [photo.file_id for photo in photos] if photos else []
+    if not message_text.strip():
+        message_text = "Без опису"
+
+    unique_photos = _get_unique_photos(photos)
+
+    attachment_files = [photo.file_id for photo in unique_photos] if unique_photos else []
     attachments = ",".join(attachment_files) if attachment_files else None
 
     ticket = await create_ticket(TicketCreateSchemaDB(
@@ -269,29 +298,41 @@ async def _process_help_message(message: Message, state: FSMContext, message_tex
         f"💬 <b>Повідомлення:</b>\n{message_text}"
     )
 
-    if photos:
-        support_message += "\n\n📷 <b>Прикріплено фото.</b>"
+    if unique_photos:
+        support_message += f"\n\n📷 <b>Прикріплено фото.</b>"
 
     try:
-        if photos:
-            media_group: List[InputMediaPhoto] = []
+        if unique_photos:
+            if len(unique_photos) == 1:
+                await message.bot.send_photo(
+                    chat_id=ADMIN_CHAT_ID,
+                    photo=unique_photos[0].file_id,
+                    caption=support_message,
+                    reply_markup=await help_kb.admin_choose_ticket_action(user.id, ticket.id)
+                )
+            else:
+                media_group: List[InputMediaPhoto] = []
 
-            for idx, photo in enumerate(photos):
-                if idx == 0:
-                    media_group.append(InputMediaPhoto(media=photo.file_id, caption=support_message))
-                else:
-                    media_group.append(InputMediaPhoto(media=photo.file_id))
+                for idx, photo in enumerate(unique_photos):
+                    if idx == 0:
+                        media_group.append(InputMediaPhoto(
+                            media=photo.file_id, caption=support_message
+                        ))
+                    else:
+                        media_group.append(InputMediaPhoto(
+                            media=photo.file_id
+                        ))
 
-            await message.bot.send_media_group(
-                chat_id=ADMIN_CHAT_ID,
-                media=media_group
-            )
+                await message.bot.send_media_group(
+                    chat_id=ADMIN_CHAT_ID,
+                    media=media_group
+                )
 
-            await message.bot.send_message(
-                chat_id=ADMIN_CHAT_ID,
-                text="🔧 Оберіть дію:",
-                reply_markup=await help_kb.admin_choose_ticket_action(user.id, ticket.id)
-            )
+                await message.bot.send_message(
+                    chat_id=ADMIN_CHAT_ID,
+                    text="🔧 Оберіть дію:",
+                    reply_markup=await help_kb.admin_choose_ticket_action(user.id, ticket.id)
+                )
 
         else:
             await message.bot.send_message(
@@ -304,16 +345,32 @@ async def _process_help_message(message: Message, state: FSMContext, message_tex
             f"✅ Звернення №{ticket.id} отримано.\n"
             "⏳ Дочекайтеся відповіді від адміністратора.\n"
             "Після першої відповіді ви зможете продовжити спілкування.\n\n"
-            "🕐 Відповімо протягом 24 годин (10:00–18:00 за Києвом)"
+            "🕐 Відповімо протягом 24 годин (10:00–18:00 за Києвом)",
+            reply_markup=await start_menu_keyboard()
         )
 
     except Exception as e:
         print(f"Error sending help ticket message to admin: {e}")
         await message.answer(
-            "❌ Виникла помилка при відправці звернення. Спробуйте пізніше."
+            "❌ Виникла помилка при відправці звернення. Спробуйте пізніше.",
+            reply_markup=await start_menu_keyboard()
         )
 
     await state.clear()
+
+
+def _get_unique_photos(photos: List[PhotoSize]) -> List[PhotoSize]:
+    unique_photos: List[PhotoSize] = []
+
+    if photos:
+        seen_file_ids = set()
+
+        for photo in photos:
+            if photo.file_id not in seen_file_ids:
+                seen_file_ids.add(photo.file_id)
+                unique_photos.append(photo)
+
+    return unique_photos
 
 
 def _get_ntl_last_data(callback: CallbackQuery) -> Tuple[int, int]:

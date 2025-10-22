@@ -220,6 +220,6 @@ async def show_menu_message(message: Message) -> None:
     await outbox.menu(message)
 
 
-@router.callback_query(F.data == "admin:back_to_menu", StateFilter(None))
+@router.callback_query(F.data == "admin:back_to_menu")
 async def show_menu_callback(callback: CallbackQuery) -> None:
     await outbox.menu(callback.message)

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Tuple, Dict, Any
 
-from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardRemove
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardMarkup, ReplyKeyboardBuilder
 
 from utils.auto_back import add_auto_back
@@ -189,8 +189,6 @@ async def tickets_menu(tickets: List[TicketReadSchemaDB], page: int, page_size: 
         }.get(ticket.status, "❓")
 
         builder.button(text=f"{status_emoji} | ID: {ticket.id}", callback_data=f"admin:ticket_{ticket.id}")
-
-    ReplyKeyboardRemove()
 
     builder.adjust(1)
 

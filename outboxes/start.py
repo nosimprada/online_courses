@@ -62,12 +62,10 @@ async def send_start_menu_to_user(bot: Bot, user_id: int) -> None:
         await bot.send_message(user_id, "❌ Не вдалося отримати інформацію про користувача.")
         return
 
-    is_admin = user_id == ADMIN_CHAT_ID
-
     await bot.send_message(
         user_id,
         _start_text(full_user_info),
-        reply_markup=await start_menu_keyboard(is_admin)
+        reply_markup=await start_menu_keyboard(user_id == ADMIN_CHAT_ID)
     )
 
 
