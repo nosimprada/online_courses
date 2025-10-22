@@ -228,6 +228,8 @@ async def register_ref_code_handler(code: str, message: Message):
     except Exception as e:
         print(f"=== ОШИБКА ПРИ ОБРАБОТКЕ РЕФЕРАЛЬНОГО КОДА: {e} ===")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+
+
 # ...existing code...
 
 

@@ -13,7 +13,6 @@ from utils.states import RefCode
 router = Router()
 
 
-
 @router.message(CommandStart())
 async def start_command_handler(message: Message, state: FSMContext):
     if message.from_user.id == ADMIN_CHAT_ID:
@@ -45,6 +44,7 @@ async def start_command_handler(message: Message, state: FSMContext):
             print(f"РЕФЕРАЛЬНЫЙ КОД: {ref_code}")
             await subscription_renewal(message, ref_code)
         await start_menu(message)
+
 
 @router.message(StateFilter(RefCode.get_ref_code))
 async def process_ref_code(message: Message, state: FSMContext):

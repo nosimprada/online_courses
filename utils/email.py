@@ -145,7 +145,7 @@ def _send_email_sync(
         error = f"SMTP error: {e}"
         logger.error(error, exc_info=True)
         return False, error
-        
+
     except Exception as e:
         error = f"Unexpected error: {e}"
         logger.error(error, exc_info=True)

@@ -76,7 +76,6 @@ async def main() -> None:
     # else:
     #     logging.error(f"Failed to send test email: {error}")
 
-
     # Запускаем FastAPI сервер
     config = uvicorn.Config(app, host="0.0.0.0", port=SERVER_PORT)
     server = uvicorn.Server(config)
