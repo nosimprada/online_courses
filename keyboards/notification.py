@@ -4,7 +4,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 async def go_to_the_first_lesson() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+
     builder.button(text="📖 До першого уроку", callback_data="course:module_lesson_1_1")
+    builder.button(text="🔁 На головну", callback_data="back_to_menu")
+
+    builder.adjust(1)
 
     return builder.as_markup()
 

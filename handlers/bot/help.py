@@ -10,7 +10,7 @@ from aiogram.types import CallbackQuery, Message, InputMediaPhoto, PhotoSize
 import keyboards.help as help_kb
 from config import ADMIN_CHAT_ID
 from keyboards.start import start_menu_keyboard
-from outboxes.admin import tickets_menu as admin_tickets_menu
+from outboxes.admin import tickets_menu as admin_tickets_menu, ERROR_MESSAGE
 from utils.enums.ticket import TicketStatus
 from utils.schemas.ticket import TicketCreateSchemaDB, TicketReadSchemaDB
 from utils.services.ticket import get_tickets_by_user_id, create_ticket, close_ticket, open_ticket, get_ticket_by_id
@@ -139,7 +139,7 @@ async def admin_send_response(message: Message, state: FSMContext) -> None:
     except Exception as e:
         print(f"Error sending message to help ticket user: {e}")
         await message.answer(
-            "❌ Не вдалося відправити повідомлення користувачу. Спробуйте пізніше.",
+            ERROR_MESSAGE,
             reply_markup=await help_kb.admin_back_to_tickets()
         )
 
@@ -168,7 +168,7 @@ async def admin_close_ticket(callback: CallbackQuery) -> None:
     except Exception as e:
         print(f"Error closing ticket #{ticket_id}: {e}")
         await callback.message.answer(
-            "❌ Помилка при закритті звернення. Спробуйте пізніше.",
+            ERROR_MESSAGE,
             reply_markup=await help_kb.admin_back_to_tickets()
         )
 
@@ -202,7 +202,7 @@ async def user_respond_to_ticket(message: Message, state: FSMContext) -> None:
 
     except Exception as e:
         print(f"Error sending user response to admin: {e}")
-        await message.answer("❌ Не вдалося відправити повідомлення адміністратору.")
+        await message.answer(ERROR_MESSAGE, reply_markup=await start_menu_keyboard())
 
 
 @router.message(HasOpenTicket(), F.photo)
@@ -262,7 +262,7 @@ async def user_respond_to_ticket_with_photo(message: Message, state: FSMContext)
 
     except Exception as e:
         print(f"Error sending user response with photo to admin: {e}")
-        await message.answer("❌ Не вдалося відправити повідомлення адміністратору.")
+        await message.answer(ERROR_MESSAGE, reply_markup=await start_menu_keyboard())
 
 
 async def _find_open_ticket(tickets: List[TicketReadSchemaDB]) -> Optional[TicketReadSchemaDB]:
@@ -352,7 +352,7 @@ async def _process_help_message(message: Message, state: FSMContext, message_tex
     except Exception as e:
         print(f"Error sending help ticket message to admin: {e}")
         await message.answer(
-            "❌ Виникла помилка при відправці звернення. Спробуйте пізніше.",
+            ERROR_MESSAGE,
             reply_markup=await start_menu_keyboard()
         )
 

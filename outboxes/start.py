@@ -6,9 +6,12 @@ from aiogram.types import Message, CallbackQuery
 from pytz import timezone
 
 from config import ADMIN_CHAT_ID
+from keyboards.notification import go_to_the_first_lesson
 from keyboards.start import start_menu_keyboard
+from outboxes.admin import ERROR_MESSAGE
 from utils.enums.order import OrderStatus
 from utils.enums.subscription import SubscriptionStatus
+from utils.notificator import MESSAGES
 from utils.schemas.user import UserCreateSchemaDB, UserReadFullInfoSchemaDB
 from utils.services.order import get_order_by_order_id, update_order_status, update_user_id_by_order_id
 from utils.services.redeem_token import get_redeem_token_by_token_hash
@@ -35,24 +38,27 @@ async def start_menu(message: Message | CallbackQuery):
         full_user_info = await get_user_full_info_by_tg_id(message.from_user.id)
         print(f"FULL USER INFO: {full_user_info}")
 
+    failed_text = "❌ Не вдалося отримати інформацію про користувача."
+
     if not full_user_info:
         if isinstance(message, Message):
-            await message.answer("❌ Не вдалося отримати інформацію про користувача.")
+            await message.answer(failed_text)
             return
 
         elif isinstance(message, CallbackQuery):
-            await message.message.answer("❌ Не вдалося отримати інформацію про користувача.")
+            await message.message.answer(failed_text)
             return
 
     is_admin = message.from_user.id == ADMIN_CHAT_ID
 
     msg_text = _start_text(full_user_info)
+    reply_markup = await start_menu_keyboard(is_admin)
 
     if isinstance(message, Message):
-        await message.answer(msg_text, reply_markup=await start_menu_keyboard(is_admin))
+        await message.answer(msg_text, reply_markup=reply_markup)
 
     elif isinstance(message, CallbackQuery):
-        await message.message.answer(msg_text, reply_markup=await start_menu_keyboard(is_admin))
+        await message.message.answer(msg_text, reply_markup=reply_markup)
 
 
 async def send_start_menu_to_user(bot: Bot, user_id: int) -> None:
@@ -126,21 +132,27 @@ async def registration_func(message: Message, ref_code: str | None = None, state
                         new_order_status = await update_order_status(order.order_id, OrderStatus.CANCELED)
                         print(f"=== ОБНОВЛЕН СТАТУС ЗАКАЗА НА CANCELED: {new_order_status} ===")
 
-                        await message.answer(f"Оплату отримано ✅\nДоступ відкрито до {access_to}.")
+                        await message.answer(
+                            text=MESSAGES["paid"].format(date=access_to),
+                            reply_markup=await go_to_the_first_lesson()
+                        )
 
                         print(f"=== ПОДПИСКА АКТИВИРОВАНА ДЛЯ: {message.from_user.id} ДО {access_to} ===")
 
                     elif subscription and subscription.status.value == SubscriptionStatus.ACTIVE.value:
                         print(f"=== ПОЛЬЗОВАТЕЛЬ УЖЕ ИМЕЕТ АКТИВНУЮ ПОДПИСКУ: {message.from_user.id} ===")
-                        await message.answer("You already have an active subscription.")
+                        await message.answer("✅ Ви вже маєте активний доступ.")
                     else:
                         print(f"=== ПОДПИСКА НE НАЙДЕНА ИЛИ НЕВЕРНЫЙ СТАТУС ===")
                 else:
                     print(f"=== ЗАКАЗ НЕ ЗАВЕРШЕН, СТАТУС: {order.status} ===")
             else:
                 print(f"=== REDEEM TOKEN НЕ НАЙДЕН ===")
+
                 await message.answer(
-                    "Активних підписок немає. Введіть будь ласка код, який був надісланий вам на електронну пошту.")
+                    "❗ Активних підписок немає. Введіть, будь ласка, код, який був надісланий вам на електронну пошту."
+                )
+
                 print(f"=== ПЕРЕХОДИМ В СОСТОЯНИЕ GET_REF_CODE ===")
                 await state.set_state(RefCode.get_ref_code)
 
@@ -154,17 +166,6 @@ async def registration_func(message: Message, ref_code: str | None = None, state
 
 def _format_date(date: datetime) -> str:
     return date.strftime("%d.%m.%Y") if date else "N/A"
-
-
-def _start_text(user: UserReadFullInfoSchemaDB) -> str:
-    # Прогрес навчання: {user.leaning_progress_procent:.2f}%
-    msg_text = f"""
-Привіт, {user.username}!
-{"✅ Ви маєте активну підписку!" if user.is_subscribed else "❌ У вас немає активної підписки."}
-Дата закінчення підписки: {_format_date(user.subscription_access_to)}
-    """
-
-    return msg_text
 
 
 # ...existing code...
@@ -225,7 +226,7 @@ async def register_ref_code_handler(code: str, message: Message):
 
     except Exception as e:
         print(f"=== ОШИБКА ПРИ ОБРАБОТКЕ РЕФЕРАЛЬНОГО КОДА: {e} ===")
-        await message.answer("Сталася помилка. Спробуйте пізніше.")
+        await message.answer(ERROR_MESSAGE)
 
 
 # ...existing code...
@@ -295,10 +296,11 @@ async def subscription_renewal(message: Message, ref_code: str | None = None, sh
                     await update_user_id_by_order_id(order.order_id, message.from_user.id)
 
                     access_to = _format_date(new_access_to)
-                    await message.answer(f"Підписку продовжено ✅\nНовий термін дії до {access_to}.")
+                    await message.answer(f"✅ Підписку продовжено!\n📅 Новий термін дії до {access_to}.")
 
                     print(
-                        f"=== ПОДПИСКА ПРОДЛЕНА ДЛЯ: {message.from_user.id} с {new_access_from} ДО {new_access_to} ===")
+                        f"=== ПОДПИСКА ПРОДЛЕНА ДЛЯ: {message.from_user.id} с {new_access_from} ДО {new_access_to} ==="
+                    )
 
                     await update_order_status(order.order_id, OrderStatus.CANCELED)
                     print(f"=== ОБНОВЛЕН СТАТУС ЗАКАЗА НА CANCELED ===")
@@ -307,16 +309,16 @@ async def subscription_renewal(message: Message, ref_code: str | None = None, sh
 
                 elif subscription and subscription.status.value == SubscriptionStatus.ACTIVE.value:
                     print(f"=== ПОДПИСКА УЖЕ АКТИВНА ===")
-                    await message.answer("Ця підписка вже активована.")
+                    await message.answer("❗ Цей доступ вже активний!")
                 else:
                     print(f"=== ПОДПИСКА НЕ НАЙДЕНА ИЛИ НЕВЕРНЫЙ СТАТУС ===")
-                    await message.answer("Підписку не знайдено. Зверніться до підтримки.")
+                    await message.answer("❌ Доступ не знайдено. Зверніться до служби підтримки.")
             else:
                 print(f"=== ЗАКАЗ НЕ ЗАВЕРШЕН, СТАТУС: {order.status} ===")
-                await message.answer("Оплата ще не підтверджена. Спробуйте пізніше.")
+                await message.answer("⛔ Оплата ще не підтверджена. Спробуйте пізніше.")
         else:
             print(f"=== REDEEM TOKEN НЕ НАЙДЕН ===")
-            await message.answer("Недійсний код доступу.")
+            await message.answer("❌ Недійсний код доступу.")
 
     elif short_code:
         print(f"=== НАЧИНАЕМ ОБРАБОТКУ КОРОТКОГО КОДА ===")
@@ -324,7 +326,7 @@ async def subscription_renewal(message: Message, ref_code: str | None = None, sh
             short_code_obj = await get_short_code_by_code_hash(short_code)
 
             if not short_code_obj:
-                await message.answer("Даний код недійсний. Спробуйте ще раз.")
+                await message.answer("❌ Цей код недійсний! Спробуйте ще раз.")
                 return
 
             print(f"=== SHORT CODE НАЙДЕН: {short_code_obj} ===")
@@ -333,17 +335,18 @@ async def subscription_renewal(message: Message, ref_code: str | None = None, sh
             order = await get_order_by_order_id(short_code_obj.order_id)
 
             if not order:
-                await message.answer("Замовлення не знайдено.")
+                await message.answer("❌ Замовлення не знайдено!")
                 return
 
             print(f"=== ЗАКАЗ ПОЛУЧЕН: {order}, СТАТУС: {order.status} ===")
 
             if order.status.value != OrderStatus.COMPLETED.value:
                 print(f"=== ЗАКАЗ НЕ ЗАВЕРШЕН, СТАТУС: {order.status} ===")
-                await message.answer("Оплата ще не підтверджена. Спробуйте пізніше.")
+                await message.answer("⛔ Оплата ще не підтверджена. Спробуйте пізніше.")
                 return
 
             print("=== ЗАКАЗ ЗАВЕРШЕН, ПОЛУЧАЕМ ПОДПИСКУ ===")
+
             subscription = await get_subscription_by_order_id(order.order_id)
             print(f"=== ПОДПИСКА ПОЛУЧЕНА: {subscription} ===")
 
@@ -387,7 +390,7 @@ async def subscription_renewal(message: Message, ref_code: str | None = None, sh
                 await update_user_id_by_order_id(order.order_id, message.from_user.id)
 
                 access_to = _format_date(new_access_to)
-                await message.answer(f"Підписку продовжено ✅\nНовий термін дії до {access_to}.")
+                await message.answer(f"✅ Підписку продовжено!\n📅 Новий термін дії до {access_to}.")
 
                 print(f"=== ПОДПИСКА ПРОДЛЕНА ДЛЯ: {message.from_user.id} с {new_access_from} ДО {new_access_to} ===")
 
@@ -398,18 +401,31 @@ async def subscription_renewal(message: Message, ref_code: str | None = None, sh
 
             elif subscription and subscription.status.value == SubscriptionStatus.ACTIVE.value:
                 print(f"=== ПОДПИСКА УЖЕ АКТИВНА ===")
-                await message.answer("Ця підписка вже активована.")
+                await message.answer("❗ Цей доступ вже активний!")
             else:
                 print("=== ПОДПИСКА НE НАЙДЕНА ИЛИ НЕВЕРНЫЙ СТАТУС ===")
-                await message.answer("Підписку не знайдено. Зверніться до підтримки.")
+                await message.answer("❌ Доступ не знайдено. Зверніться до служби підтримки.")
 
         except Exception as e:
             print(f"=== ОШИБКА ПРИ ОБРАБОТКЕ КОРОТКОГО КОДА: {e} ===")
+
             import traceback
             traceback.print_exc()
-            await message.answer("Сталася помилка. Спробуйте пізніше.")
+
+            await message.answer(ERROR_MESSAGE)
     else:
         print(f"=== НЕ ПЕРЕДАН НИ ОДИН КОД ===")
-        await message.answer("Будь ласка, введіть код доступу.")
+        await message.answer("❗ Будь ласка, введіть код доступу.")
+
 
 # ...existing code...
+
+def _start_text(user: UserReadFullInfoSchemaDB) -> str:
+    # Прогрес навчання: {user.leaning_progress_procent:.2f}%
+    msg_text = f"""
+Привіт, {user.username}!
+{"✅ Ви маєте активну підписку!" if user.is_subscribed else "❌ У вас немає активної підписки."}
+Дата закінчення підписки: {_format_date(user.subscription_access_to)}
+    """
+
+    return msg_text
