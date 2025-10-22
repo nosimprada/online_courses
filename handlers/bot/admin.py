@@ -2,35 +2,16 @@ from aiogram import Router, F
 from aiogram.enums import ContentType
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, Message
 
 import outboxes.admin as outbox
 from middlewares.user import IsAdminMiddleware
+from utils.states import CreateLessonState, GrantSubscriptionState, UpdateLessonState
 
 router = Router()
 
 router.message.middleware(IsAdminMiddleware())
 router.callback_query.middleware(IsAdminMiddleware())
-
-
-# ---------------------------- FSM States ----------------------------
-
-class GrantSubscriptionState(StatesGroup):
-    access_to = State()
-
-
-class CreateLessonState(StatesGroup):
-    title = State()
-    video = State()
-    pdf = State()
-
-
-class UpdateLessonState(StatesGroup):
-    title = State()
-    video = State()
-    pdf = State()
-
 
 # ---------------------------- Users / Orders ----------------------------
 

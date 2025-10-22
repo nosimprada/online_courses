@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, Header
 
 from config import API_TOKEN
-from utils.email import send_email
+from utils.email import send_course_access_email
 from utils.enums.order import OrderStatus
 from utils.schemas.order import OrderCreateSchemaDB
 from utils.schemas.subscription import SubscriptionCreateSchemaDB
@@ -118,21 +118,17 @@ async def payment_completed(request: Request):
                 short_code = await get_short_code_by_order_id(order_id)
                 code = short_code.code_hash
 
-                await send_email(
-                    order.email,
-                    "Lagidna Disciplina | Успішна реєстрація",
-                    f"""
-Вітаємо! Ви успішно зареєструвалися.
+                # Отправка письма с доступом к курсу
+                success, error = await send_course_access_email(
+                    to=order.email,
+                    access_code=code,
+                    bot_link="https://t.me/lagidna_disciplinabot?start=" + token
+                )
 
-Ваш унікальний токен для доступу: <b>{token}</b>
-Код доступу: <b>{code}</b>
-
-Збережіть ці дані — вони потрібні для входу в систему та активації вашої підписки.
-
-Якщо у вас виникнуть питання або знадобиться допомога, звертайтеся до нашої служби підтримки в боті.
-
-Дякуємо, що вибрали Lagidna Disciplina!
-                """)
+                if success:
+                    print("Email sent successfully")
+                else:
+                    print(f"Failed to send email: {error}")
 
             print(f"Обрабатываем успешную оплату для заказа {order_id}")
 
